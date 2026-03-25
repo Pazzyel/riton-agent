@@ -1,14 +1,13 @@
+import asyncio
 import json
 import logging
 import threading
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, Dict, Any, Optional, ClassVar, Coroutine
 
-import asyncio
-
 from rocketmq import ClientConfiguration, Credentials, Message, Producer
 
-from common.config import app_config
+from common.app_config import app_config
 
 logger = logging.getLogger(__name__)
 

@@ -5,8 +5,8 @@ from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from modules.session.model.dto.chat_session_dto import SessionListItemDTO
-from modules.session.model.orm.chat_session_orm import ChatMessageORM, ChatSessionORM
 from modules.session.model.entity.chat_message_entity import ChatMessageEntity, ChatSessionEntity
+from modules.session.model.orm.chat_session_orm import ChatMessageORM, ChatSessionORM
 
 
 class ChatSessionRepository:

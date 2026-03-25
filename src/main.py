@@ -2,17 +2,17 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from langgraph.checkpoint.mysql.aio import AIOMySQLSaver
+from modules.knowledgebase.router import knowledgebase_router, rag_chat_router
 
-from common.config import app_config
+from common.app_config import app_config
 from common.dependencies import (
     knowledgebase_query_service,
     vectorize_message_consumer,
 )
 from common.exceptions import BusinessException
-from modules.knowledgebase.router import knowledgebase_router, rag_chat_router
 from modules.session.router import chat_router
 
 logging.basicConfig(level=logging.INFO)

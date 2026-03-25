@@ -1,7 +1,6 @@
 from enum import Enum
 from typing import TypeVar, Generic, Optional, Any
 
-from common.exceptions import ErrorCode
 from pydantic import BaseModel
 
 T = TypeVar('T')

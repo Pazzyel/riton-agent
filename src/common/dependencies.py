@@ -2,22 +2,20 @@ from infrastructure.file.document_parse_service import DocumentParseService
 from infrastructure.file.file_hash_service import FileHashService
 from infrastructure.file.file_storage_service import FileStorageService
 from infrastructure.file.file_validation_service import FileValidationService
+from infrastructure.knowledgebase.listener.knowledgebase_vectorize_consumer_service import \
+    KnowledgeBaseVectorizeConsumerService
+from infrastructure.knowledgebase.listener.vectorize_message_consumer import VectorizeMessageConsumer
+from infrastructure.knowledgebase.listener.vectorize_message_producer import VectorizeMessageProducer
+from infrastructure.knowledgebase.repository.knowledgebase_repository import KnowledgeBaseRepository
+from infrastructure.knowledgebase.service.knowledgebase_count_service import KnowledgeBaseCountService
+from infrastructure.knowledgebase.service.knowledgebase_delete_service import KnowledgeBaseDeleteService
+from infrastructure.knowledgebase.service.knowledgebase_list_service import KnowledgeBaseListService
+from infrastructure.knowledgebase.service.knowledgebase_parse_service import KnowledgeBaseParseService
+from infrastructure.knowledgebase.service.knowledgebase_persistence_service import KnowledgeBasePersistenceService
+from infrastructure.knowledgebase.service.knowledgebase_query_service import KnowledgeBaseQueryService
+from infrastructure.knowledgebase.service.knowledgebase_upload_service import KnowledgeBaseUploadService
+from infrastructure.knowledgebase.service.knowledgebase_vector_service import KnowledgeBaseVectorService
 from infrastructure.vector.vector_service import VectorService
-from modules.knowledgebase.listener.vectorize_message_consumer import VectorizeMessageConsumer
-from modules.knowledgebase.listener.vectorize_message_producer import VectorizeMessageProducer
-from modules.knowledgebase.repository.knowledgebase_repository import KnowledgeBaseRepository
-from modules.knowledgebase.repository.rag_chat_repository import RagChatRepository
-from modules.knowledgebase.repository.rag_chat_session_repository import RagChatSessionRepository
-from modules.knowledgebase.service.knowledgebase_count_service import KnowledgeBaseCountService
-from modules.knowledgebase.service.knowledgebase_delete_service import KnowledgeBaseDeleteService
-from modules.knowledgebase.service.knowledgebase_list_service import KnowledgeBaseListService
-from modules.knowledgebase.service.knowledgebase_parse_service import KnowledgeBaseParseService
-from modules.knowledgebase.service.knowledgebase_persistence_service import KnowledgeBasePersistenceService
-from modules.knowledgebase.service.knowledgebase_query_service import KnowledgeBaseQueryService
-from modules.knowledgebase.service.knowledgebase_upload_service import KnowledgeBaseUploadService
-from modules.knowledgebase.service.knowledgebase_vector_service import KnowledgeBaseVectorService
-from modules.knowledgebase.service.knowledgebase_vectorize_consumer_service import KnowledgeBaseVectorizeConsumerService
-from modules.knowledgebase.service.rag_chat_session_service import RagChatSessionService
 from modules.session.repository.chat_session_repository import ChatSessionRepository
 from modules.session.service.chat_session_service import ChatSessionService
 
@@ -31,8 +29,6 @@ file_validation_service = FileValidationService()
 # ==================== Knowledge Base Module ====================
 
 knowledgebase_repository = KnowledgeBaseRepository()
-rag_chat_repository = RagChatRepository()
-rag_chat_session_repository = RagChatSessionRepository()
 vector_service = VectorService()
 knowledgebase_vector_service = KnowledgeBaseVectorService(vector_service)
 
@@ -59,13 +55,13 @@ knowledgebase_upload_service = KnowledgeBaseUploadService(
 )
 
 knowledgebase_list_service = KnowledgeBaseListService(
-    knowledgebase_repository, rag_chat_repository, file_storage_service
+    knowledgebase_repository, file_storage_service
 )
 knowledgebase_count_service = KnowledgeBaseCountService(knowledgebase_repository)
 knowledgebase_delete_service = KnowledgeBaseDeleteService(
     knowledgebase_repository, rag_chat_repository, knowledgebase_vector_service, file_storage_service
 )
-knowledgebase_query_service = KnowledgeBaseQueryService(knowledgebase_list_service, knowledgebase_vector_service, knowledgebase_count_service)
+knowledgebase_query_service = KnowledgeBaseQueryService(vector_service)
 rag_chat_session_service = RagChatSessionService(rag_chat_session_repository, knowledgebase_query_service)
 
 # ==================== Session Chat Module ====================

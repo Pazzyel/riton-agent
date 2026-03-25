@@ -1,14 +1,22 @@
-from typing import TypeAlias
-
+from langchain_core.vectorstores.base import VectorStore
 from langchain_elasticsearch import AsyncElasticsearchStore, AsyncDenseVectorStrategy
 
 from common.ai_config import ai_config
-from common.config import app_config
-
-VectorStore: TypeAlias = AsyncElasticsearchStore
+from common.app_config import app_config
 
 
-vector_store: VectorStore = AsyncElasticsearchStore(
+def get_vector_index_name(category: str) -> str:
+    return app_config.elasticsearch_index_name + "/" + category
+
+def create_vector_store_with_category(category: str) -> VectorStore:
+    return AsyncElasticsearchStore(
+        es_url=app_config.elasticsearch_url,
+        index_name=get_vector_index_name(category),
+        embedding=ai_config.category_embedding,
+        strategy=AsyncDenseVectorStrategy(),
+    )
+
+default_vector_store: VectorStore = AsyncElasticsearchStore(
     es_url=app_config.elasticsearch_url,
     index_name=app_config.elasticsearch_index_name,
     embedding=ai_config.embeddings,

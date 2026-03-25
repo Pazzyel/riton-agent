@@ -1,12 +1,12 @@
 import asyncio
+import logging
 from concurrent.futures import ProcessPoolExecutor
 from io import BytesIO
-import logging
 
 from fastapi import UploadFile
 from unstructured.partition.auto import partition
 
-from common.config import app_config
+from common.app_config import app_config
 
 logger = logging.getLogger(__name__)
 

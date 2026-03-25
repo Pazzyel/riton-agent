@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import List, Optional
 
+from modules.knowledgebase.model.knowledgebase_dto import KnowledgeBaseListItemDTO
 from pydantic import Field
 
 from infrastructure.model.BaseCamelSchema import BaseCamelSchema
-from modules.knowledgebase.model.knowledgebase_dto import KnowledgeBaseListItemDTO
 
 
 class CreateSessionRequest(BaseCamelSchema):
