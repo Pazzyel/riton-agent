@@ -18,6 +18,8 @@ from modules.knowledgebase.service.knowledgebase_upload_service import Knowledge
 from modules.knowledgebase.service.knowledgebase_vector_service import KnowledgeBaseVectorService
 from modules.knowledgebase.service.knowledgebase_vectorize_consumer_service import KnowledgeBaseVectorizeConsumerService
 from modules.knowledgebase.service.rag_chat_session_service import RagChatSessionService
+from modules.session.repository.chat_session_repository import ChatSessionRepository
+from modules.session.service.chat_session_service import ChatSessionService
 
 # ==================== Shared Infrastructure ====================
 
@@ -65,3 +67,8 @@ knowledgebase_delete_service = KnowledgeBaseDeleteService(
 )
 knowledgebase_query_service = KnowledgeBaseQueryService(knowledgebase_list_service, knowledgebase_vector_service, knowledgebase_count_service)
 rag_chat_session_service = RagChatSessionService(rag_chat_session_repository, knowledgebase_query_service)
+
+# ==================== Session Chat Module ====================
+
+chat_session_repository = ChatSessionRepository()
+chat_session_service = ChatSessionService(chat_session_repository)

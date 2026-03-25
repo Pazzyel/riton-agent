@@ -18,7 +18,7 @@ class Result(BaseModel, Generic[T]):
     data: Optional[T] = None
     
     @classmethod
-    def success(cls, data: Optional[T] = None, message: str = "Success") -> "Result[T]":
+    def success(cls, data: Optional[T] = None, message: str = "Success") -> "Result[Any]":
         return cls(code=200, message=message, data=data)
         
     @classmethod

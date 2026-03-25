@@ -13,6 +13,7 @@ from common.dependencies import (
 )
 from common.exceptions import BusinessException
 from modules.knowledgebase.router import knowledgebase_router, rag_chat_router
+from modules.session.router import chat_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Resume Analysis Service Migration", version="1.0", lifespan=lifespan)
 
 app.include_router(knowledgebase_router.router)
+app.include_router(chat_router.router)
 
 @app.exception_handler(BusinessException)
 async def business_exception_handler(request: Request, exc: BusinessException):

@@ -4,24 +4,11 @@ from pydantic_settings import BaseSettings
 
 
 class AppConfigProperties(BaseSettings):
-    allowed_types: List[str] = [
-        "application/pdf",
-        "application/msword",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "text/plain",
-        "text/markdown"
-    ]
-    max_file_size_bytes: int = 10 * 1024 * 1024  # 10MB
     # RocketMQ config
     rocketmq_endpoints: str = "localhost:8081"
-    rocketmq_producer_group: str = "resume-producer-group"
-    rocketmq_consumer_group: str = "resume-consumer-group"
     rocketmq_max_retry_count: int = 3
-    resume_analyze_topic: str = "resume-analyze-topic"
-    resume_analyze_tag: str = "analyze"
-    interview_evaluate_topic: str = "interview-evaluate-topic"
-    interview_evaluate_tag: str = "evaluate"
-    interview_evaluate_consumer_group: str = "interview-evaluate-consumer-group"
+
+    # DataBase config
     database_url: str = "mysql+aiomysql://root:123@localhost:3308/interview"
     DB_URI: str = "mysql+aiomysql://root:123@localhost:3308/checkpointer" # 这是LangGraph checkpointer的保存点
 
