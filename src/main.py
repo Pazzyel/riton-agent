@@ -9,15 +9,10 @@ from langgraph.checkpoint.mysql.aio import AIOMySQLSaver
 from common.config import app_config
 from common.dependencies import (
     knowledgebase_query_service,
-    analyze_message_consumer,
     vectorize_message_consumer,
-    interview_agent_service,
-    evaluate_message_consumer,
 )
 from common.exceptions import BusinessException
-from modules.interview.router import interview_router
 from modules.knowledgebase.router import knowledgebase_router, rag_chat_router
-from modules.resume.router import resume_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,24 +22,16 @@ async def lifespan(app: FastAPI):
     async with AIOMySQLSaver.from_conn_string(app_config.DB_URI) as checkpointer:
         await checkpointer.setup()
         await knowledgebase_query_service.build_graph(checkpointer)
-        await interview_agent_service.build_graph(checkpointer)
-        await analyze_message_consumer.start()
         await vectorize_message_consumer.start()
-        await evaluate_message_consumer.start()
         logging.info("LangGraph Checkpointer 已就绪")
         yield
 
-    await evaluate_message_consumer.shutdown()
     await vectorize_message_consumer.shutdown()
-    await analyze_message_consumer.shutdown()
     logging.info("LangGraph Checkpointer 连接池已关闭")
 
 app = FastAPI(title="Resume Analysis Service Migration", version="1.0", lifespan=lifespan)
 
-app.include_router(resume_router.router)
 app.include_router(knowledgebase_router.router)
-app.include_router(rag_chat_router.router)
-app.include_router(interview_router.router)
 
 @app.exception_handler(BusinessException)
 async def business_exception_handler(request: Request, exc: BusinessException):
