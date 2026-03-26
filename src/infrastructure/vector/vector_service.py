@@ -6,7 +6,7 @@ from langchain_core.vectorstores.base import VectorStore, VectorStoreRetriever
 from langchain_elasticsearch import AsyncElasticsearchRetriever
 
 from common.app_config import app_config
-from infrastructure.knowledgebase.model.emum.knowledgebase_category_enum import KnowledgebaseCategoryEnum
+from modules.knowledgebase.model.emum.knowledgebase_category_enum import KnowledgebaseCategoryEnum
 from infrastructure.vector.vector_store import create_vector_store_with_category, get_vector_index_name
 
 logger = logging.getLogger(__name__)

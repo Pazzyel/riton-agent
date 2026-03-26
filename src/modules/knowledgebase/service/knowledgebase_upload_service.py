@@ -123,55 +123,6 @@ class KnowledgeBaseUploadService:
             },
             "duplicate": False,
         }
-    
-    async def upload_knowledge_base_content(
-        self,
-        db: AsyncSession,
-        content: str,
-        name: Optional[str] = None,
-        category: str = None,
-    ) -> Dict[str, Any]:
-        """
-        上传知识库，直接上传已解析的文本
-        """
-
-
-        # 3. 检查知识库是否已存在（去重）
-        file_hash: str = await self.file_hash_service.calculate_hash_bytes(content.encode("utf-8"))
-        existing_kb: Optional[KnowledgeBaseEntity] = await self.knowledge_base_repository.find_by_file_hash(db, file_hash)
-        if existing_kb is not None:
-            logger.info("检测到重复知识库: hash=%s", file_hash)
-            return await self.persistence_service.handle_duplicate_knowledge_base(db, existing_kb, file_hash)
-
-
-        # 6. 保存知识库元数据到数据库（状态为 PENDING）
-        saved_kb: KnowledgeBaseEntity = await self.persistence_service.save_knowledgebase_content(
-            db, content, name, category, file_hash
-        )
-
-        # 7. 发送向量化任务到 RocketMQ（异步处理）
-        if saved_kb.id is None:
-            raise BusinessException(ErrorCode.VALIDATION_ERROR, "保存的知识库没有id")
-        self.vectorize_stream_producer.send_vectorize_task(saved_kb.id,saved_kb.name, saved_kb.category, content)
-
-        logger.info("知识库上传完成，向量化任务已入队: %s, kb_id=%s", file_name, saved_kb.id)
-
-        # 8. 返回结果（状态为 PENDING，前端可轮询获取最新状态）
-        return {
-            "knowledgeBase": {
-                "id": saved_kb.id,
-                "name": saved_kb.name,
-                "category": saved_kb.category or "",
-                "fileSize": saved_kb.file_size,
-                "contentLength": len(content),
-                "vectorStatus": VectorStatus.PENDING.value,
-            },
-            "storage": {
-                "fileKey": file_key,
-                "fileUrl": file_url,
-            },
-            "duplicate": False,
-        }
 
     async def revectorize(self, db: AsyncSession, kb_id: int) -> None:
         """
