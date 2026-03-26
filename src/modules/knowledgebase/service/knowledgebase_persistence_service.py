@@ -92,37 +92,6 @@ class KnowledgeBasePersistenceService:
             logger.error("保存知识库失败: %s", str(e), exc_info=True)
             raise BusinessException(ErrorCode.SYSTEM_ERROR, "保存知识库失败")
 
-    async def save_knowledgebase_from_table(self, db: AsyncSession, content: bytes, name: Optional[str], category: str, hash: str, table_id: int) -> KnowledgeBaseEntity:
-        """
-                保存新知识库元数据到数据库。
-
-                Build and persist a new knowledge base entity.
-                Returns the saved entity with generated ID.
-                """
-        try:
-            # 从文件名提取名称（如果用户没有提供）
-
-
-            kb = KnowledgeBaseEntity(
-                file_hash=hash,
-                name=name,
-                category=category,
-                original_filename="unknown",
-                file_size=len(content) or 0,
-                content_type="application/text",
-                table_id=table_id,
-            )
-
-            saved_kb: KnowledgeBaseEntity = await self.knowledge_base_repository.save(db, kb)
-            logger.info(
-                "知识库已保存: id=%s, name=%s, category=%s, hash=%s, table_id=%s",
-                saved_kb.id, saved_kb.name, saved_kb.category, file_hash,table_id
-            )
-            return saved_kb
-        except Exception as e:
-            logger.error("保存知识库失败: %s", str(e), exc_info=True)
-            raise BusinessException(ErrorCode.SYSTEM_ERROR, "保存知识库失败")
-
     async def update_vector_status_to_pending(self, db: AsyncSession, kb_id: int) -> None:
         """
         更新知识库向量化状态为 PENDING（用于重新向量化）。

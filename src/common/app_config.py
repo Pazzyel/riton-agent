@@ -39,8 +39,8 @@ class AppConfigProperties(BaseSettings):
 
     # ElasticSearch
     elasticsearch_url: str = "http://localhost:9200"
-    elasticsearch_index_name: str = "smart_service"
     elasticsearch_query_mode: str = "dense_vector"
+    knowledgebase_index_name: str = "knowledgebase"
 
     class Config:
         env_file = ".env"

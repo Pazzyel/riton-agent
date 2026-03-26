@@ -23,9 +23,9 @@ def token_length_function(content: str) -> int:
 
 
 
-class KnowledgeBaseVectorService:
+class KnowledgeBaseVectorService(VectorService):
     def __init__(self, vector_service: VectorService):
-        self.vector_service: VectorService = vector_service
+        super().__init__(app_config.knowledgebase_index_name)
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=500,           # 每个块 500 Tokens
             chunk_overlap=50,         # 重叠 50 Tokens

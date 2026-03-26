@@ -22,7 +22,6 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     async with AIOMySQLSaver.from_conn_string(app_config.DB_URI) as checkpointer:
         await checkpointer.setup()
-        await knowledgebase_query_service.build_graph(checkpointer)
         await vectorize_message_consumer.start()
         logging.info("LangGraph Checkpointer 已就绪")
         yield
