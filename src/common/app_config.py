@@ -34,6 +34,17 @@ class AppConfigProperties(BaseSettings):
     kb_max_file_size_bytes: int = 50 * 1024 * 1024  # 50MB
     rustfs_kb_bucket_name: str = "knowledgebases"
 
+    # Table infos MQ config
+    shop_vectorize_topic: str = "shop-vectorize-topic"
+    shop_vectorize_tag: str = "shop-vectorize-tag"
+    shop_vectorize_consumer_group: str = "shop-vectorize-consumer-group"
+    voucher_vectorize_topic: str = "voucher-vectorize-topic"
+    voucher_vectorize_tag: str = "voucher-vectorize-tag"
+    voucher_vectorize_consumer_group: str = "voucher-vectorize-consumer-group"
+    blog_vectorize_topic: str = "blog-vectorize-topic"
+    blog_vectorize_tag: str = "blog-vectorize-tag"
+    blog_vectorize_consumer_group: str = "blog-vectorize-consumer-group"
+
     # Tokenizer
     tokenizer_name: str = "cl100k_base"
 
