@@ -5,13 +5,11 @@ from common.ai_config import ai_config
 from common.app_config import app_config
 
 
-def get_vector_index_name(prefix: str, category: str) -> str:
-    return prefix + "/" + category
-
-def create_vector_store_with_category(prefix: str, category: str) -> VectorStore:
+def create_vector_store(index_url: str) -> VectorStore:
+    """Create a vector store using a full index URL."""
     return AsyncElasticsearchStore(
         es_url=app_config.elasticsearch_url,
-        index_name=get_vector_index_name(prefix,category),
+        index_name=index_url,
         embedding=ai_config.category_embedding,
         strategy=AsyncDenseVectorStrategy(),
     )
