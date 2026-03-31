@@ -8,18 +8,19 @@ class ShopVectorizeDto(BaseCamelSchema):
     operation: str
 
     id: int
-    name: str
+    name: str # 商铺名称
     type_name: str # 商铺类型分类
-    images: str
-    area: str
-    address: str
-    x: float
-    y: float
-    h3hex: str
-    avg_price: int
-    sold: int
+    description: str # 商铺描述
+    images: str # 图片链接
+    area: str # 商圈位置
+    address: str # 商铺地址
+    x: float # 精度
+    y: float # 维度
+    h3hex: str # h3哈希值16进制
+    avg_price: int # 均价
+    sold: int # 销量
     comments: int # 评论数量
-    score: int
-    open_hours: str
+    score: int # 评分
+    open_hours: str # 营业时间
     create_time: datetime
     update_time: datetime

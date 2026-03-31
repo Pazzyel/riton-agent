@@ -40,7 +40,10 @@ class AppConfigProperties(BaseSettings):
     # ElasticSearch
     elasticsearch_url: str = "http://localhost:9200"
     elasticsearch_query_mode: str = "dense_vector"
-    knowledgebase_index_name: str = "knowledgebase"
+    knowledgebase_index_name: str = "vector/knowledgebase"
+    shop_index_name: str = "vector/shop"
+    voucher_index_name: str = "vector/voucher"
+    blog_index_name: str = "vector/blog"
 
     class Config:
         env_file = ".env"
