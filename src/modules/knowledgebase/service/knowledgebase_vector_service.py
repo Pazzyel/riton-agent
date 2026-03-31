@@ -26,11 +26,13 @@ class KnowledgeBaseVectorService:
         self._voucher_service: KnowledgeBaseVoucherVectorService = KnowledgeBaseVoucherVectorService()
 
     def _get_category_service(
-        self, kb_category: str
+        self, kb_category: Optional[str]
     ) -> KnowledgeBaseShopVectorService | KnowledgeBaseVoucherVectorService:
         """
         根据分类返回对应的向量服务。
         """
+        if kb_category is None or kb_category.strip() == "":
+            raise BusinessException(ErrorCode.NOT_FOUND, "未知知识库分类", kb_category)
         normalized_category: str = kb_category.strip().lower()
         if normalized_category == "shop":
             return self._shop_service
@@ -38,7 +40,9 @@ class KnowledgeBaseVectorService:
             return self._voucher_service
         raise BusinessException(ErrorCode.NOT_FOUND, "未知知识库分类", kb_category)
 
-    async def vectorize_and_store(self, kb_id: int, kb_name: str, kb_category: str, content: str) -> None:
+    async def vectorize_and_store(
+        self, kb_id: int, kb_name: str, kb_category: Optional[str], content: str
+    ) -> None:
         """
         向量化知识库并存储到 Elasticsearch。
         """

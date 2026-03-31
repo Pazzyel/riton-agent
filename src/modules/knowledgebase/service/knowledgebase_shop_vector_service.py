@@ -98,7 +98,7 @@ class KnowledgeBaseShopVectorService:
         """
         logger.info("开始删除知识库向量数据: kb_id=%s", knowledgebase_id)
         try:
-            await self.vector_service.delete_vector_by_id(knowledgebase_id)
+            await self.vector_service.delete_vector_by_id(str(knowledgebase_id))
             logger.info("成功删除知识库向量数据: kb_id=%s", knowledgebase_id)
         except Exception as e:
             logger.error("删除向量数据失败: kb_id=%s, error=%s", knowledgebase_id, str(e))

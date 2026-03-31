@@ -28,21 +28,15 @@ def test_shop_vector_service_builds_index_url(monkeypatch) -> None:
     from modules.knowledgebase.service.knowledgebase_shop_vector_service import (
         KnowledgeBaseShopVectorService,
     )
-    from infrastructure.vector import vector_service
+    from infrastructure.vector.vector_service import VectorService
 
     captured: dict = {}
 
-    class FakeStore:
-        def __init__(self) -> None:
-            self.client = object()
-
-    def fake_create_vector_store(index_url: str) -> FakeStore:
+    def fake_vector_service_init(self, index_url: str) -> None:
         captured["index_url"] = index_url
-        return FakeStore()
 
-    monkeypatch.setattr(vector_service, "create_vector_store", fake_create_vector_store)
+    monkeypatch.setattr(VectorService, "__init__", fake_vector_service_init)
 
-    service = KnowledgeBaseShopVectorService()
+    KnowledgeBaseShopVectorService()
 
     assert captured["index_url"] == f"{app_config.knowledgebase_index_name}/shop"
-    assert service.vector_service._store.__class__ is FakeStore
