@@ -5,9 +5,7 @@ from langchain_core.documents import Document
 from langchain_core.vectorstores.base import VectorStore, VectorStoreRetriever
 from langchain_elasticsearch import AsyncElasticsearchRetriever
 
-from common.app_config import app_config
-from modules.knowledgebase.model.emum.knowledgebase_category_enum import KnowledgebaseCategoryEnum
-from infrastructure.vector.vector_store import create_vector_store_with_category, get_vector_index_name
+from infrastructure.vector.vector_store import create_vector_store
 
 logger = logging.getLogger(__name__)
 
@@ -15,45 +13,43 @@ logger = logging.getLogger(__name__)
 class VectorService:
     """
     向量端口服务（Port）。
-
-    对业务层暴露与底层向量库无关的方法：
-    - add_documents
-    - similar_search
-    - delete_by_kb_id
-
-    当前默认持有 Elasticsearch 的 VectorStore，后续替换向量库仅需在 VectorStore 侧调整。
     """
-    def __init__(self, prefix: str) -> None:
-        self._index_prefix = prefix
-        store_dict: Dict[str, VectorStore] = {}
-        for category in KnowledgebaseCategoryEnum:
-            store_dict[category.value] = create_vector_store_with_category(prefix,category.value)
-        self._store: Dict[str, VectorStore] = store_dict
 
-    async def add_documents(self, category: str, documents: List[Document]) -> None:
-        await self._store[category].aadd_documents(documents)
+    def __init__(self, index_url: str) -> None:
+        self._index_url: str = index_url
+        self._store: VectorStore = create_vector_store(index_url)
 
-    def get_retriever(self, category: str, search_type: str = "similarity_score_threshold", search_kwargs: Optional[dict] = None) -> VectorStoreRetriever:
-        return self._store[category].as_retriever(search_type=search_type, search_kwargs=search_kwargs)
+    async def add_documents(self, documents: List[Document]) -> None:
+        await self._store.aadd_documents(documents)
 
-    def get_rrf_retriever(self, category: str, rrf_rule: str, content_field: str, field_mapping: Optional[Dict[str,str]] = None) -> VectorStoreRetriever:
+    def get_retriever(
+        self,
+        search_type: str = "similarity_score_threshold",
+        search_kwargs: Optional[dict] = None,
+    ) -> VectorStoreRetriever:
+        return self._store.as_retriever(search_type=search_type, search_kwargs=search_kwargs)
+
+    def get_rrf_retriever(
+        self,
+        rrf_rule: str,
+        content_field: str,
+        field_mapping: Optional[Dict[str, str]] = None,
+    ) -> VectorStoreRetriever:
         return AsyncElasticsearchRetriever.from_es_params(
-            index_name=get_vector_index_name(self._index_prefix,category),
+            index_name=self._index_url,
             body_func=rrf_rule,
-            content_field=content_field,  # 指定返回给 AI 的主要文本字段
+            content_field=content_field,
             selection_conf=field_mapping,
-            es_client=self._store[category].client,
+            es_client=self._store.client,
         )
 
     async def similar_search(
         self,
         query: str,
-        category: str,
         top_k: int,
         min_score: float,
         pre_filter: Optional[list] = None,
     ) -> List[Document]:
-        """单路召回"""
         try:
             search_kwargs = {
                 "k": max(top_k, 1),
@@ -62,18 +58,21 @@ class VectorService:
             if pre_filter is not None:
                 search_kwargs["filter"] = pre_filter
 
-            retriever = self.get_retriever(category, search_type="similarity_score_threshold", search_kwargs=search_kwargs)
+            retriever = self.get_retriever(
+                search_type="similarity_score_threshold",
+                search_kwargs=search_kwargs,
+            )
             documents = await retriever.ainvoke(query)
             return documents[:top_k]
         except Exception as e:
             logger.warning("向量搜索失败: %s", str(e))
             raise e
 
-    async def delete_vector_by_id(self, category: str, vector_id: int) -> None:
+    async def delete_vector_by_id(self, vector_id: int) -> None:
         """WARN: 该函数只有Elasticsearch可用"""
-        es_client = self._store[category].client
+        es_client = self._store.client
         await es_client.delete_by_query(
-            index=get_vector_index_name(self._index_prefix,category),
+            index=self._index_url,
             body={
                 "query": {
                     "term": {
