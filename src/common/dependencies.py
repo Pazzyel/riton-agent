@@ -17,6 +17,19 @@ from modules.knowledgebase.service.knowledgebase_upload_service import Knowledge
 from modules.knowledgebase import KnowledgeBaseVectorService
 from modules.knowledgebase.service.knowledgebase_shop_vector_service import KnowledgeBaseShopVectorService
 from modules.knowledgebase.service.knowledgebase_voucher_vector_service import KnowledgeBaseVoucherVectorService
+from modules.tablevectorize.listener.blog_vectorize_message_consumer import BlogVectorizeMessageConsumer
+from modules.tablevectorize.listener.blog_vectorize_message_producer import BlogVectorizeMessageProducer
+from modules.tablevectorize.listener.shop_vectorize_message_consumer import ShopVectorizeMessageConsumer
+from modules.tablevectorize.listener.shop_vectorize_message_producer import ShopVectorizeMessageProducer
+from modules.tablevectorize.listener.voucher_vectorize_message_consumer import (
+    VoucherVectorizeMessageConsumer,
+)
+from modules.tablevectorize.listener.voucher_vectorize_message_producer import (
+    VoucherVectorizeMessageProducer,
+)
+from modules.tablevectorize.service.blog_vectorize_service import BlogVectorizeService
+from modules.tablevectorize.service.shop_vectorize_service import ShopVectorizeService
+from modules.tablevectorize.service.voucher_vectorize_service import VoucherVectorizeService
 from modules.session.repository.chat_session_repository import ChatSessionRepository
 from modules.session.service.chat_session_service import ChatSessionService
 
@@ -71,6 +84,29 @@ knowledgebase_delete_service = KnowledgeBaseDeleteService(
 knowledgebase_query_service = KnowledgeBaseQueryService(
     knowledgebase_shop_vector_service,
     knowledgebase_voucher_vector_service,
+)
+
+# ==================== Table Vectorize Module ====================
+
+shop_vectorize_service = ShopVectorizeService()
+voucher_vectorize_service = VoucherVectorizeService()
+blog_vectorize_service = BlogVectorizeService()
+
+shop_vectorize_message_producer = ShopVectorizeMessageProducer()
+voucher_vectorize_message_producer = VoucherVectorizeMessageProducer()
+blog_vectorize_message_producer = BlogVectorizeMessageProducer()
+
+shop_vectorize_message_consumer = ShopVectorizeMessageConsumer(
+    shop_vectorize_service,
+    shop_vectorize_message_producer,
+)
+voucher_vectorize_message_consumer = VoucherVectorizeMessageConsumer(
+    voucher_vectorize_service,
+    voucher_vectorize_message_producer,
+)
+blog_vectorize_message_consumer = BlogVectorizeMessageConsumer(
+    blog_vectorize_service,
+    blog_vectorize_message_producer,
 )
 
 # ==================== Session Chat Module ====================

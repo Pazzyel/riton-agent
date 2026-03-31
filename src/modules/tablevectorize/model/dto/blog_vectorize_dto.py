@@ -20,3 +20,4 @@ class BlogVectorizeDto(BaseCamelSchema):
     comments: int # 评论数目
     create_time: datetime
     update_time: datetime
+    retry_count: int = 0

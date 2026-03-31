@@ -117,6 +117,28 @@ def test_dependencies_wire_new_vector_services(monkeypatch) -> None:
     fake_shop_vector_module = types.ModuleType("modules.knowledgebase.service.knowledgebase_shop_vector_service")
     fake_voucher_vector_module = types.ModuleType("modules.knowledgebase.service.knowledgebase_voucher_vector_service")
 
+    fake_shop_tv_service_module = types.ModuleType("modules.tablevectorize.service.shop_vectorize_service")
+    fake_voucher_tv_service_module = types.ModuleType("modules.tablevectorize.service.voucher_vectorize_service")
+    fake_blog_tv_service_module = types.ModuleType("modules.tablevectorize.service.blog_vectorize_service")
+    fake_shop_tv_producer_module = types.ModuleType(
+        "modules.tablevectorize.listener.shop_vectorize_message_producer"
+    )
+    fake_voucher_tv_producer_module = types.ModuleType(
+        "modules.tablevectorize.listener.voucher_vectorize_message_producer"
+    )
+    fake_blog_tv_producer_module = types.ModuleType(
+        "modules.tablevectorize.listener.blog_vectorize_message_producer"
+    )
+    fake_shop_tv_consumer_module = types.ModuleType(
+        "modules.tablevectorize.listener.shop_vectorize_message_consumer"
+    )
+    fake_voucher_tv_consumer_module = types.ModuleType(
+        "modules.tablevectorize.listener.voucher_vectorize_message_consumer"
+    )
+    fake_blog_tv_consumer_module = types.ModuleType(
+        "modules.tablevectorize.listener.blog_vectorize_message_consumer"
+    )
+
     class FakeKnowledgeBaseCountService:
         def __init__(self, *args: object, **kwargs: object) -> None:
             _ = kwargs
@@ -143,18 +165,81 @@ def test_dependencies_wire_new_vector_services(monkeypatch) -> None:
         def __init__(self, *args: object, **kwargs: object) -> None:
             _ = kwargs
 
+    class FakeShopVectorizeService:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args
+            _ = kwargs
+
+    class FakeVoucherVectorizeService:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args
+            _ = kwargs
+
+    class FakeBlogVectorizeService:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args
+            _ = kwargs
+
+    class FakeShopVectorizeMessageProducer:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args
+            _ = kwargs
+
+    class FakeVoucherVectorizeMessageProducer:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args
+            _ = kwargs
+
+    class FakeBlogVectorizeMessageProducer:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args
+            _ = kwargs
+
+    class FakeShopVectorizeMessageConsumer:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = kwargs
+            _capture_call("shop_vectorize_message_consumer", args)
+
+    class FakeVoucherVectorizeMessageConsumer:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = kwargs
+            _capture_call("voucher_vectorize_message_consumer", args)
+
+    class FakeBlogVectorizeMessageConsumer:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = kwargs
+            _capture_call("blog_vectorize_message_consumer", args)
+
     fake_count_service_module.KnowledgeBaseCountService = FakeKnowledgeBaseCountService
     fake_delete_service_module.KnowledgeBaseDeleteService = FakeKnowledgeBaseDeleteService
     fake_query_service_module.KnowledgeBaseQueryService = FakeKnowledgeBaseQueryService
     fake_upload_service_module.KnowledgeBaseUploadService = FakeKnowledgeBaseUploadService
     fake_shop_vector_module.KnowledgeBaseShopVectorService = FakeKnowledgeBaseShopVectorService
     fake_voucher_vector_module.KnowledgeBaseVoucherVectorService = FakeKnowledgeBaseVoucherVectorService
+    fake_shop_tv_service_module.ShopVectorizeService = FakeShopVectorizeService
+    fake_voucher_tv_service_module.VoucherVectorizeService = FakeVoucherVectorizeService
+    fake_blog_tv_service_module.BlogVectorizeService = FakeBlogVectorizeService
+    fake_shop_tv_producer_module.ShopVectorizeMessageProducer = FakeShopVectorizeMessageProducer
+    fake_voucher_tv_producer_module.VoucherVectorizeMessageProducer = FakeVoucherVectorizeMessageProducer
+    fake_blog_tv_producer_module.BlogVectorizeMessageProducer = FakeBlogVectorizeMessageProducer
+    fake_shop_tv_consumer_module.ShopVectorizeMessageConsumer = FakeShopVectorizeMessageConsumer
+    fake_voucher_tv_consumer_module.VoucherVectorizeMessageConsumer = FakeVoucherVectorizeMessageConsumer
+    fake_blog_tv_consumer_module.BlogVectorizeMessageConsumer = FakeBlogVectorizeMessageConsumer
     monkeypatch.setitem(sys.modules, "modules.knowledgebase.service.knowledgebase_count_service", fake_count_service_module)
     monkeypatch.setitem(sys.modules, "modules.knowledgebase.service.knowledgebase_delete_service", fake_delete_service_module)
     monkeypatch.setitem(sys.modules, "modules.knowledgebase.service.knowledgebase_query_service", fake_query_service_module)
     monkeypatch.setitem(sys.modules, "modules.knowledgebase.service.knowledgebase_upload_service", fake_upload_service_module)
     monkeypatch.setitem(sys.modules, "modules.knowledgebase.service.knowledgebase_shop_vector_service", fake_shop_vector_module)
     monkeypatch.setitem(sys.modules, "modules.knowledgebase.service.knowledgebase_voucher_vector_service", fake_voucher_vector_module)
+    monkeypatch.setitem(sys.modules, "modules.tablevectorize.service.shop_vectorize_service", fake_shop_tv_service_module)
+    monkeypatch.setitem(sys.modules, "modules.tablevectorize.service.voucher_vectorize_service", fake_voucher_tv_service_module)
+    monkeypatch.setitem(sys.modules, "modules.tablevectorize.service.blog_vectorize_service", fake_blog_tv_service_module)
+    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.shop_vectorize_message_producer", fake_shop_tv_producer_module)
+    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.voucher_vectorize_message_producer", fake_voucher_tv_producer_module)
+    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.blog_vectorize_message_producer", fake_blog_tv_producer_module)
+    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.shop_vectorize_message_consumer", fake_shop_tv_consumer_module)
+    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.voucher_vectorize_message_consumer", fake_voucher_tv_consumer_module)
+    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.blog_vectorize_message_consumer", fake_blog_tv_consumer_module)
 
     fake_session_repo_module = types.ModuleType("modules.session.repository.chat_session_repository")
     fake_session_service_module = types.ModuleType("modules.session.service.chat_session_service")
@@ -208,3 +293,21 @@ def test_dependencies_wire_new_vector_services(monkeypatch) -> None:
     assert len(query_args) == 2
     assert isinstance(query_args[0], FakeKnowledgeBaseShopVectorService)
     assert isinstance(query_args[1], FakeKnowledgeBaseVoucherVectorService)
+
+    shop_consumer_args = captured.get("shop_vectorize_message_consumer")
+    assert shop_consumer_args is not None
+    assert len(shop_consumer_args) == 2
+    assert isinstance(shop_consumer_args[0], FakeShopVectorizeService)
+    assert isinstance(shop_consumer_args[1], FakeShopVectorizeMessageProducer)
+
+    voucher_consumer_args = captured.get("voucher_vectorize_message_consumer")
+    assert voucher_consumer_args is not None
+    assert len(voucher_consumer_args) == 2
+    assert isinstance(voucher_consumer_args[0], FakeVoucherVectorizeService)
+    assert isinstance(voucher_consumer_args[1], FakeVoucherVectorizeMessageProducer)
+
+    blog_consumer_args = captured.get("blog_vectorize_message_consumer")
+    assert blog_consumer_args is not None
+    assert len(blog_consumer_args) == 2
+    assert isinstance(blog_consumer_args[0], FakeBlogVectorizeService)
+    assert isinstance(blog_consumer_args[1], FakeBlogVectorizeMessageProducer)

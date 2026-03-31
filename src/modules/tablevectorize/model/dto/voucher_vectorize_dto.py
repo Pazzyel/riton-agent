@@ -1,12 +1,14 @@
 from datetime import datetime
 
+from infrastructure.model.BaseCamelSchema import BaseCamelSchema
+
 
 class VoucherVectorizeDto(BaseCamelSchema):
     operation: str
 
     id: int
     shop_id: int # 商铺id
-    shop_name: int # 商铺名称
+    shop_name: str # 商铺名称
     x: float # 商铺经度
     y: float # 商铺维度
     h3hex: str # 地址的h3
@@ -21,3 +23,4 @@ class VoucherVectorizeDto(BaseCamelSchema):
     create_time: datetime
     update_time: datetime
     daily_limit: int # 每日限购
+    retry_count: int = 0
