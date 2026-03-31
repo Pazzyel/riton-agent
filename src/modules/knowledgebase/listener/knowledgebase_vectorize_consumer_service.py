@@ -1,9 +1,12 @@
 import logging
 from typing import Optional
 
-from modules.knowledgebase.model.knowledgebase_entity import KnowledgeBaseEntity, VectorStatus
+from modules.knowledgebase.model.emum.knowledgebase_category_enum import KnowledgebaseCategoryEnum
+from modules.knowledgebase.model.entity.knowledgebase_entity import KnowledgeBaseEntity, VectorStatus
 from modules.knowledgebase.repository.knowledgebase_repository import KnowledgeBaseRepository
+from modules.knowledgebase.service.knowledgebase_shop_vector_service import KnowledgeBaseShopVectorService
 from modules.knowledgebase.service.knowledgebase_vector_service import KnowledgeBaseVectorService
+from modules.knowledgebase.service.knowledgebase_voucher_vector_service import KnowledgeBaseVoucherVectorService
 
 from infrastructure.database.connection import async_session_factory
 
@@ -17,9 +20,35 @@ class KnowledgeBaseVectorizeConsumerService:
         self,
         knowledgebase_repository: KnowledgeBaseRepository,
         knowledgebase_vector_service: KnowledgeBaseVectorService,
+        shop_vector_service: Optional[KnowledgeBaseShopVectorService] = None,
+        voucher_vector_service: Optional[KnowledgeBaseVoucherVectorService] = None,
     ) -> None:
         self._knowledgebase_repository: KnowledgeBaseRepository = knowledgebase_repository
         self._knowledgebase_vector_service: KnowledgeBaseVectorService = knowledgebase_vector_service
+        self._shop_vector_service: KnowledgeBaseShopVectorService = (
+            shop_vector_service if shop_vector_service is not None else KnowledgeBaseShopVectorService()
+        )
+        self._voucher_vector_service: KnowledgeBaseVoucherVectorService = (
+            voucher_vector_service if voucher_vector_service is not None else KnowledgeBaseVoucherVectorService()
+        )
+
+    def _get_vector_service(
+        self, kb_category: str
+    ) -> Optional[KnowledgeBaseShopVectorService | KnowledgeBaseVoucherVectorService]:
+        """Return vector service by category or None if invalid."""
+        if kb_category.strip() == "":
+            return None
+
+        normalized_category: str = kb_category.strip().lower()
+        try:
+            category_enum: KnowledgebaseCategoryEnum = KnowledgebaseCategoryEnum(normalized_category)
+        except ValueError:
+            return None
+
+        if category_enum == KnowledgebaseCategoryEnum.SHOP:
+            return self._shop_vector_service
+
+        return self._voucher_vector_service
 
     async def process_task(
         self,
@@ -36,8 +65,9 @@ class KnowledgeBaseVectorizeConsumerService:
         执行步骤 / Execution Steps:
         1) 检查知识库是否存在，不存在则直接跳过。
         2) 标记状态为 PROCESSING，清空错误信息。
-        3) 调用向量服务执行分块、嵌入与存储。
-        4) 标记状态为 COMPLETED。
+        3) 校验分类并选择对应的向量服务。
+        4) 调用向量服务执行分块、嵌入与存储。
+        5) 标记状态为 COMPLETED。
 
         说明 / Notes:
         - 若消息里缺少 `kb_name` 与 `kb_category`，会回退到数据库实体字段。
@@ -61,20 +91,38 @@ class KnowledgeBaseVectorizeConsumerService:
         # 2) 选择元信息（优先消息，回退数据库）
         final_kb_name: str = kb_name if kb_name is not None and kb_name.strip() != "" else kb_entity.name
         final_kb_category: str = (
-            kb_category if kb_category is not None and kb_category.strip() != "" else (kb_entity.category or "general")
+            kb_category if kb_category is not None and kb_category.strip() != "" else (kb_entity.category or "")
         )
 
-        # 3) 执行向量化
-        logger.info("正在向量化知识库: kbId=%s, kbName=%s, kbCategory=%s, contentLength=%s", kb_id, final_kb_name, final_kb_category, len(content))
-        await self._knowledgebase_vector_service.vectorize_and_store(
+        # 3) 校验分类并选择向量服务
+        vector_service: Optional[KnowledgeBaseShopVectorService | KnowledgeBaseVoucherVectorService] = (
+            self._get_vector_service(final_kb_category)
+        )
+        if vector_service is None:
+            logger.warning(
+                "Invalid knowledgebase category, mark failed: kbId=%s, kbCategory=%s",
+                kb_id,
+                final_kb_category,
+            )
+            await self.mark_failed(kb_id, f"Invalid knowledgebase category: {final_kb_category}")
+            return
+
+        # 4) 执行向量化
+        logger.info(
+            "正在向量化知识库: kbId=%s, kbName=%s, kbCategory=%s, contentLength=%s",
+            kb_id,
+            final_kb_name,
+            final_kb_category,
+            len(content),
+        )
+        await vector_service.vectorize_and_store(
             kb_id=kb_id,
             kb_name=final_kb_name,
-            kb_category=final_kb_category,
             content=content,
         )
 
         logger.info("知识库向量化完成，正在更新状态: kbId=%s", kb_id)
-        # 4) 标记成功
+        # 5) 标记成功
         async with async_session_factory() as db:
             try:
                 await self._knowledgebase_repository.update_vector_status(db, kb_id, VectorStatus.COMPLETED, None)
