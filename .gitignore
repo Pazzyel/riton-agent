@@ -1,0 +1,15 @@
+.venv
+.idea
+.vscode
+.github
+.codex
+.antigravity
+.claude
+__pycache__/
+*.pyc
+plans
+AGENTS.md
+CLAUDE.md
+.gitignore
+opencode.json
+.worktrees/
