@@ -9,8 +9,11 @@ from modules.knowledgebase.router import knowledgebase_router, rag_chat_router
 
 from common.app_config import app_config
 from common.dependencies import (
+    blog_vectorize_message_consumer,
     knowledgebase_query_service,
+    shop_vectorize_message_consumer,
     vectorize_message_consumer,
+    voucher_vectorize_message_consumer,
 )
 from common.exceptions import BusinessException
 from modules.session.router import chat_router
@@ -23,9 +26,15 @@ async def lifespan(app: FastAPI):
     async with AIOMySQLSaver.from_conn_string(app_config.DB_URI) as checkpointer:
         await checkpointer.setup()
         await vectorize_message_consumer.start()
+        await shop_vectorize_message_consumer.start()
+        await voucher_vectorize_message_consumer.start()
+        await blog_vectorize_message_consumer.start()
         logging.info("LangGraph Checkpointer 已就绪")
         yield
 
+    await blog_vectorize_message_consumer.shutdown()
+    await voucher_vectorize_message_consumer.shutdown()
+    await shop_vectorize_message_consumer.shutdown()
     await vectorize_message_consumer.shutdown()
     logging.info("LangGraph Checkpointer 连接池已关闭")
 

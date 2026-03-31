@@ -24,3 +24,4 @@ class ShopVectorizeDto(BaseCamelSchema):
     open_hours: str # 营业时间
     create_time: datetime
     update_time: datetime
+    retry_count: int = 0

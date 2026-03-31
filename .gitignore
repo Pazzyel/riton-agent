@@ -12,4 +12,5 @@ AGENTS.md
 CLAUDE.md
 .gitignore
 opencode.json
-.worktrees/
+.worktrees
+docs
