@@ -1,4 +1,5 @@
 import logging
+from typing import Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,7 +7,9 @@ from common.exceptions import BusinessException, ErrorCode
 from infrastructure.file.file_storage_service import FileStorageService
 from infrastructure.knowledgebase.model.entity.knowledgebase_entity import KnowledgeBaseEntity
 from infrastructure.knowledgebase.repository.knowledgebase_repository import KnowledgeBaseRepository
-from infrastructure.knowledgebase.service.knowledgebase_vector_service import KnowledgeBaseVectorService
+from modules.knowledgebase.model.emum.knowledgebase_category_enum import KnowledgebaseCategoryEnum
+from modules.knowledgebase.service.knowledgebase_shop_vector_service import KnowledgeBaseShopVectorService
+from modules.knowledgebase.service.knowledgebase_voucher_vector_service import KnowledgeBaseVoucherVectorService
 
 logger = logging.getLogger(__name__)
 
@@ -21,12 +24,29 @@ class KnowledgeBaseDeleteService:
     def __init__(
         self,
         knowledgebase_repository: KnowledgeBaseRepository,
-        vector_service: KnowledgeBaseVectorService,
+        shop_vector_service: KnowledgeBaseShopVectorService,
+        voucher_vector_service: KnowledgeBaseVoucherVectorService,
         storage_service: FileStorageService,
-    ):
-        self.knowledgebase_repository = knowledgebase_repository
-        self.vector_service = vector_service
-        self.storage_service = storage_service
+    ) -> None:
+        self.knowledgebase_repository: KnowledgeBaseRepository = knowledgebase_repository
+        self._shop_vector_service: KnowledgeBaseShopVectorService = shop_vector_service
+        self._voucher_vector_service: KnowledgeBaseVoucherVectorService = voucher_vector_service
+        self.storage_service: FileStorageService = storage_service
+
+    def _get_vector_service(
+        self, kb_category: Optional[str]
+    ) -> KnowledgeBaseShopVectorService | KnowledgeBaseVoucherVectorService:
+        if kb_category is None or kb_category.strip() == "":
+            raise BusinessException(ErrorCode.NOT_FOUND, "未知知识库分类", kb_category)
+        normalized_category: str = kb_category.strip().lower()
+        try:
+            category_enum: KnowledgebaseCategoryEnum = KnowledgebaseCategoryEnum(normalized_category)
+        except ValueError as exc:
+            raise BusinessException(ErrorCode.NOT_FOUND, "未知知识库分类", kb_category) from exc
+
+        if category_enum == KnowledgebaseCategoryEnum.SHOP:
+            return self._shop_vector_service
+        return self._voucher_vector_service
 
     async def delete_knowledge_base(self, db: AsyncSession, kb_id: int) -> None:
         """
@@ -44,7 +64,8 @@ class KnowledgeBaseDeleteService:
 
         # 2. 删除向量数据 / Delete vector data
         try:
-            await self.vector_service.delete_knowledgebase_by_id(kb_id)
+            vector_service = self._get_vector_service(kb.category)
+            await vector_service.delete_knowledgebase_by_id(kb_id)
         except Exception as e:
             logger.warning(f"删除向量数据失败，继续删除知识库: kbId={kb_id}, error={str(e)}")
 

@@ -15,7 +15,8 @@ from modules.knowledgebase import KnowledgeBasePersistenceService
 from modules.knowledgebase.service.knowledgebase_query_service import KnowledgeBaseQueryService
 from modules.knowledgebase.service.knowledgebase_upload_service import KnowledgeBaseUploadService
 from modules.knowledgebase import KnowledgeBaseVectorService
-from infrastructure.vector.vector_service import VectorService
+from modules.knowledgebase.service.knowledgebase_shop_vector_service import KnowledgeBaseShopVectorService
+from modules.knowledgebase.service.knowledgebase_voucher_vector_service import KnowledgeBaseVoucherVectorService
 from modules.session.repository.chat_session_repository import ChatSessionRepository
 from modules.session.service.chat_session_service import ChatSessionService
 
@@ -29,8 +30,9 @@ file_validation_service = FileValidationService()
 # ==================== Knowledge Base Module ====================
 
 knowledgebase_repository = KnowledgeBaseRepository()
-vector_service = VectorService()
-knowledgebase_vector_service = KnowledgeBaseVectorService(vector_service)
+knowledgebase_vector_service = KnowledgeBaseVectorService()
+knowledgebase_shop_vector_service = KnowledgeBaseShopVectorService()
+knowledgebase_voucher_vector_service = KnowledgeBaseVoucherVectorService()
 
 knowledgebase_parse_service = KnowledgeBaseParseService(document_parse_service, file_storage_service)
 knowledgebase_persistence_service = KnowledgeBasePersistenceService(knowledgebase_repository)
@@ -38,6 +40,8 @@ vectorize_message_producer = VectorizeMessageProducer(knowledgebase_repository)
 knowledgebase_vectorize_consumer_service = KnowledgeBaseVectorizeConsumerService(
     knowledgebase_repository,
     knowledgebase_vector_service,
+    knowledgebase_shop_vector_service,
+    knowledgebase_voucher_vector_service,
 )
 vectorize_message_consumer = VectorizeMessageConsumer(
     knowledgebase_vectorize_consumer_service,
@@ -59,10 +63,15 @@ knowledgebase_list_service = KnowledgeBaseListService(
 )
 knowledgebase_count_service = KnowledgeBaseCountService(knowledgebase_repository)
 knowledgebase_delete_service = KnowledgeBaseDeleteService(
-    knowledgebase_repository, rag_chat_repository, knowledgebase_vector_service, file_storage_service
+    knowledgebase_repository,
+    knowledgebase_shop_vector_service,
+    knowledgebase_voucher_vector_service,
+    file_storage_service,
 )
-knowledgebase_query_service = KnowledgeBaseQueryService(vector_service)
-rag_chat_session_service = RagChatSessionService(rag_chat_session_repository, knowledgebase_query_service)
+knowledgebase_query_service = KnowledgeBaseQueryService(
+    knowledgebase_shop_vector_service,
+    knowledgebase_voucher_vector_service,
+)
 
 # ==================== Session Chat Module ====================
 
