@@ -135,7 +135,39 @@ def _regex_score(query: str, entry: DeferredToolEntry) -> int:
 
 @tool
 def tool_search(query: str) -> str:
-    """获取延迟工具的完整 schema 定义，便于后续调用。"""
+    """Fetch full schema definitions for deferred tools so the model can call them.
+
+    Deferred tools are only exposed to the model by name in the
+    ``<available-deferred-tools>`` prompt block. Before fetching schema from
+    this tool, those deferred tools are not directly callable because the model
+    does not know their argument definitions.
+
+    Query syntax (exactly three forms):
+
+    1) ``select:name1,name2``
+       - Exact name selection (no fuzzy match).
+       - Example: ``select:Read,Edit,Grep``
+
+    2) ``+keyword rest``
+       - Required filter: tool name must contain ``keyword``.
+       - Ranking: matched candidates are sorted by relevance of ``rest``.
+       - Example: ``+slack send message``
+
+    3) ``keyword-or-regex``
+       - General regex search over ``tool_name + tool_description``.
+       - If regex is invalid, the query is treated as escaped literal text.
+       - Name matches rank above description-only matches.
+       - Example: ``notebook jupyter``
+
+    Args:
+        query: Search expression used to locate deferred tools.
+
+    Returns:
+        A JSON string (OpenAI function schema array) for matched tools.
+        Maximum result count is 5. If no registry exists, returns
+        ``"No deferred tools available."``. If no match exists, returns
+        ``"No tools found matching: {query}"``.
+    """
     # 获取延迟注册表，若不存在直接返回提示信息。
     registry: DeferredToolRegistry | None = get_deferred_registry()
     if registry is None:
@@ -148,7 +180,7 @@ def tool_search(query: str) -> str:
 
     # 将工具序列化为 OpenAI function schema，并输出 JSON 字符串。
     try:
-        tool_defs: List[dict] = [
+        tool_defs: List[Dict[str, Any]] = [
             convert_to_openai_function(tool_instance)
             for tool_instance in matched_tools[:MAX_RESULTS]
         ]
