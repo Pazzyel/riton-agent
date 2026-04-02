@@ -1,6 +1,58 @@
-"""Policy evaluation logic for sandbox script execution."""
+"""Policy helpers and matching for sandbox script execution."""
+
+from __future__ import annotations
+
+from pathlib import Path
 
 from infrastructure.sandbox.models import ScriptPolicy
+
+
+def infer_interpreter_for_script(script_path: str) -> str | None:
+    """Infer interpreter name from the script file suffix."""
+    suffix = Path(script_path).suffix.lower()
+    if suffix == ".py":
+        return "python3"
+    if suffix in {".js", ".ts"}:
+        return "node"
+    return None
+
+
+def build_policy_key(skill_name: str, script: str) -> str:
+    """Build a stable policy key from skill and script path."""
+    normalized_script = "/".join(part for part in script.replace("\\", "/").split("/") if part)
+    return f"{skill_name}/{normalized_script}"
+
+
+def scan_script_policies(skills_root: Path) -> dict[str, ScriptPolicy]:
+    """Scan skill script files and return inferred policies keyed by skill/script."""
+    policies: dict[str, ScriptPolicy] = {}
+
+    # Step 1: walk each skill's scripts directory and gather candidate files.
+    for skill_dir in sorted(skills_root.glob("*")):
+        if not skill_dir.is_dir():
+            continue
+        scripts_dir = skill_dir / "scripts"
+        if not scripts_dir.is_dir():
+            continue
+
+        # Step 2: infer interpreter by suffix and skip unsupported file types.
+        for script_file in sorted(scripts_dir.rglob("*")):
+            if not script_file.is_file():
+                continue
+            interpreter = infer_interpreter_for_script(script_file.name)
+            if interpreter is None:
+                continue
+
+            # Step 3: build normalized script path and map it to a ScriptPolicy.
+            relative_script = script_file.relative_to(skill_dir).as_posix()
+            key = build_policy_key(skill_dir.name, relative_script)
+            policies[key] = ScriptPolicy(
+                skill_name=skill_dir.name,
+                script=relative_script,
+                interpreter=interpreter,
+            )
+
+    return policies
 
 
 class PolicyEngine:
@@ -34,39 +86,10 @@ class PolicyEngine:
         args: dict[str, object],
     ) -> tuple[bool, str, ScriptPolicy | None]:
         """Evaluate policy and include the matched policy when available."""
-        # Step 1: resolve the policy entry for the requested execution identity.
-        matching_policy = self._find_matching_policy(
-            skill_name=skill_name,
-            script=script,
-            interpreter=interpreter,
-        )
+        del args
+        matching_policy = self._find_matching_policy(skill_name, script, interpreter)
         if matching_policy is None:
             return False, "No policy matched skill/script/interpreter", None
-
-        # Step 2: enforce argument presence constraints from the matched policy.
-        required_args_ok, required_args_reason = self._validate_required_args(
-            policy=matching_policy,
-            args=args,
-        )
-        if not required_args_ok:
-            return False, required_args_reason, matching_policy
-
-        # Step 3: reject invocation keys that the policy does not recognize.
-        unknown_args_ok, unknown_args_reason = self._validate_unknown_args(
-            policy=matching_policy,
-            args=args,
-        )
-        if not unknown_args_ok:
-            return False, unknown_args_reason, matching_policy
-
-        # Step 4: validate runtime values against declared argument types.
-        arg_types_ok, arg_types_reason = self._validate_arg_types(
-            policy=matching_policy,
-            args=args,
-        )
-        if not arg_types_ok:
-            return False, arg_types_reason, matching_policy
-
         return True, "ok", matching_policy
 
     def _find_matching_policy(
@@ -76,61 +99,12 @@ class PolicyEngine:
         interpreter: str,
     ) -> ScriptPolicy | None:
         """Return the first policy that matches skill, script, and interpreter."""
+        requested_key = build_policy_key(skill_name, script)
         for policy in self._policies:
-            # Check each identifier explicitly so mismatch reasons are deterministic.
-            if policy.skill_name is not None and policy.skill_name != skill_name:
+            policy_key = build_policy_key(policy.skill_name, policy.script)
+            if policy_key != requested_key:
                 continue
-            if policy.script is not None and policy.script != script:
-                continue
-            if policy.interpreter is not None and policy.interpreter != interpreter:
-                continue
-            if policy.allowed_skills and skill_name not in policy.allowed_skills:
+            if policy.interpreter != interpreter:
                 continue
             return policy
-
         return None
-
-    def _validate_required_args(
-        self,
-        policy: ScriptPolicy,
-        args: dict[str, object],
-    ) -> tuple[bool, str]:
-        """Ensure all required policy arguments are provided."""
-        for required_arg in policy.required_args:
-            if required_arg not in args:
-                return False, f"Missing required argument: {required_arg}"
-
-        return True, "ok"
-
-    def _validate_unknown_args(
-        self,
-        policy: ScriptPolicy,
-        args: dict[str, object],
-    ) -> tuple[bool, str]:
-        """Ensure invocation does not include arguments outside allowed set."""
-        if not policy.allowed_args:
-            return True, "ok"
-
-        for arg_name in args:
-            if arg_name not in policy.allowed_args:
-                return False, f"Unknown argument: {arg_name}"
-
-        return True, "ok"
-
-    def _validate_arg_types(
-        self,
-        policy: ScriptPolicy,
-        args: dict[str, object],
-    ) -> tuple[bool, str]:
-        """Ensure invocation argument values match declared argument types."""
-        # Validate only supplied args that have a declared type contract.
-        for arg_name, expected_type in policy.arg_types.items():
-            if arg_name not in args:
-                continue
-            if not isinstance(args[arg_name], expected_type):
-                return (
-                    False,
-                    f"Invalid type for argument {arg_name}: expected {expected_type.__name__}",
-                )
-
-        return True, "ok"

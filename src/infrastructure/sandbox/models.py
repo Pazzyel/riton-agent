@@ -45,39 +45,27 @@ class ScriptExecutionResult:
 
     def __post_init__(self) -> None:
         """Normalize and validate execution status values."""
+        if isinstance(self.status, ScriptExecutionStatus):
+            return
+
         if isinstance(self.status, str):
             try:
                 self.status = ScriptExecutionStatus(self.status)
             except ValueError as error:
                 raise ValueError("Unsupported script execution status") from error
+            return
+
+        raise ValueError("Unsupported script execution status")
 
 
 @dataclass
 class ScriptPolicy:
-    """Policy constraints that control sandbox script permissions."""
+    """Policy metadata that identifies the allowed script entry."""
 
-    allowed_skills: list[str]
-    max_timeout_seconds: int
-    allow_network: bool = False
-    allowed_read_paths: list[str] = field(default_factory=list)
-    allowed_write_paths: list[str] = field(default_factory=list)
-    skill_name: str | None = None
-    script: str | None = None
-    interpreter: str | None = None
-    required_args: list[str] = field(default_factory=list)
-    allowed_args: list[str] = field(default_factory=list)
-    arg_types: dict[str, type[Any]] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        """Validate policy timeout and argument constraints."""
-        if self.max_timeout_seconds <= 0:
-            raise ValueError("max_timeout_seconds must be greater than 0")
-
-        if self.allowed_args:
-            required_args_set = set(self.required_args)
-            allowed_args_set = set(self.allowed_args)
-            if not required_args_set.issubset(allowed_args_set):
-                raise ValueError("required_args must be a subset of allowed_args")
+    skill_name: str
+    script: str
+    interpreter: str
+    max_timeout_seconds: float | None = None
 
 
 @dataclass
@@ -90,7 +78,7 @@ class ScriptArgSchema:
 
     def __post_init__(self) -> None:
         """Validate strict mode required/allowed key relationship."""
-        if self.strict and self.allowed_keys:
+        if self.strict:
             required_keys_set = set(self.required_keys)
             allowed_keys_set = set(self.allowed_keys)
             if not required_keys_set.issubset(allowed_keys_set):

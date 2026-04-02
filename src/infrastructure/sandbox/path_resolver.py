@@ -30,19 +30,37 @@ class PathResolver:
 
         return True
 
+    def _normalize_script_path(self, script: str) -> Path:
+        """Return script path normalized to forward-slash segment semantics."""
+        normalized_script = "/".join(part for part in script.replace("\\", "/").split("/") if part)
+        return Path(normalized_script)
+
+    def _is_rooted_without_drive(self, script: str) -> bool:
+        """Return whether script is rooted (/, \\) even without a drive letter."""
+        return script.startswith(("/", "\\"))
+
     def resolve_script_path(self, skill_name: str, script: str) -> tuple[bool, Path | None]:
         """Return whether script is allowed and the resolved path when allowed."""
+        # Step 1: reject malformed skill names before any script processing.
         if not self._is_valid_skill_name(skill_name):
             return False, None
 
-        if Path(script).is_absolute() or self._is_windows_absolute(script):
+        # Step 2: deny absolute or rooted script forms in both POSIX and Windows styles.
+        if (
+            Path(script).is_absolute()
+            or self._is_windows_absolute(script)
+            or self._is_rooted_without_drive(script)
+        ):
             return False, None
 
-        if ".." in Path(script).parts:
+        # Step 3: normalize separators first so traversal checks are platform-consistent.
+        normalized_script = self._normalize_script_path(script)
+
+        if ".." in normalized_script.parts:
             return False, None
 
-        # Build and normalize the script location under skills root.
-        candidate_path: Path = (self._skills_root / skill_name / script).resolve()
+        # Step 4: resolve target path and enforce containment under sandbox skills root.
+        candidate_path: Path = (self._skills_root / skill_name / normalized_script).resolve()
 
         # Deny any path that resolves outside the configured root boundary.
         try:

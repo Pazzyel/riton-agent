@@ -1,26 +1,23 @@
 """Smoke test for the sandbox example runner."""
 
 from pathlib import Path
-import sys
+import os
 
 
-def _prepare_src_import_path() -> None:
-    """Ensure tests can import modules from the src directory."""
+def test_run_example_returns_expected_result_shape(monkeypatch) -> None:
+    """run_example should execute demo script and return normalized fields."""
     test_file: Path = Path(__file__).resolve()
     project_root: Path = test_file.parents[3]
     src_root: Path = project_root / "src"
-    src_root_str: str = str(src_root)
-    if src_root_str not in sys.path:
-        sys.path.insert(0, src_root_str)
+    monkeypatch.syspath_prepend(str(src_root))
 
+    def _deny_chdir(_: str | os.PathLike[str]) -> None:
+        raise AssertionError("run_example must not call os.chdir")
 
-_prepare_src_import_path()
+    monkeypatch.setattr(os, "chdir", _deny_chdir)
 
-from infrastructure.sandbox.example import run_example
+    from infrastructure.sandbox.example import run_example
 
-
-def test_run_example_returns_expected_result_shape() -> None:
-    """run_example should execute demo script and return normalized fields."""
     result = run_example()
 
     assert set(result.keys()) == {

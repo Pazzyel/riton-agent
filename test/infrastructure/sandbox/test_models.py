@@ -55,16 +55,38 @@ def test_script_execution_request_rejects_non_positive_timeout() -> None:
         ScriptExecutionRequest(skill_name="demo", script="run.py", timeout_seconds=0)
 
 
-def test_script_policy_rejects_non_positive_max_timeout() -> None:
-    """Policy max timeout must be strictly positive."""
-    with pytest.raises(ValueError, match="max_timeout_seconds must be greater than 0"):
-        ScriptPolicy(allowed_skills=["demo-skill"], max_timeout_seconds=-1)
+def test_script_policy_fields_are_minimal() -> None:
+    """Script policy should expose core fields with optional timeout unset."""
+    policy = ScriptPolicy(skill_name="demo-skill", script="run.py", interpreter="python")
+
+    assert policy.skill_name == "demo-skill"
+    assert policy.script == "run.py"
+    assert policy.interpreter == "python"
+    assert policy.max_timeout_seconds is None
+
+
+def test_script_policy_allows_optional_max_timeout() -> None:
+    """Script policy should allow configuring an optional max timeout."""
+    policy = ScriptPolicy(
+        skill_name="demo-skill",
+        script="run.py",
+        interpreter="python",
+        max_timeout_seconds=12.5,
+    )
+
+    assert policy.max_timeout_seconds == 12.5
 
 
 def test_script_arg_schema_rejects_required_keys_outside_allowed() -> None:
     """Strict arg schema must only require keys from allowed keys."""
     with pytest.raises(ValueError, match="required_keys must be a subset of allowed_keys"):
         ScriptArgSchema(required_keys=["missing"], allowed_keys=["name"], strict=True)
+
+
+def test_script_arg_schema_rejects_required_keys_when_allowed_is_empty() -> None:
+    """Strict arg schema should enforce subset relationship for empty allowlists."""
+    with pytest.raises(ValueError, match="required_keys must be a subset of allowed_keys"):
+        ScriptArgSchema(required_keys=["missing"], allowed_keys=[], strict=True)
 
 
 def test_script_arg_schema_allows_any_required_keys_when_non_strict() -> None:
@@ -87,30 +109,19 @@ def test_script_execution_result_rejects_unknown_status() -> None:
         ScriptExecutionResult(run_id="run-3", status="unknown")
 
 
-def test_script_policy_and_arg_schema_defaults() -> None:
-    """Policy models should support safe defaults for later sandbox checks."""
-    policy = ScriptPolicy(allowed_skills=["demo-skill"], max_timeout_seconds=45)
+def test_script_execution_result_rejects_non_string_non_enum_status() -> None:
+    """Execution result should reject status values that are neither strings nor enums."""
+    with pytest.raises(ValueError, match="Unsupported script execution status"):
+        ScriptExecutionResult(run_id="run-4", status=123)  # type: ignore[arg-type]
+
+
+def test_script_arg_schema_defaults() -> None:
+    """Argument schema should keep strict mode and supplied key sets."""
     arg_schema = ScriptArgSchema(required_keys=["name"], allowed_keys=["name", "limit"])
 
-    assert policy.allowed_skills == ["demo-skill"]
-    assert policy.max_timeout_seconds == 45
-    assert policy.allow_network is False
-    assert policy.allowed_read_paths == []
-    assert policy.allowed_write_paths == []
     assert arg_schema.required_keys == ["name"]
     assert arg_schema.allowed_keys == ["name", "limit"]
     assert arg_schema.strict is True
-
-
-def test_script_policy_rejects_required_args_outside_allowed_args() -> None:
-    """Script policy should reject required args not in allowed args."""
-    with pytest.raises(ValueError, match="required_args must be a subset of allowed_args"):
-        ScriptPolicy(
-            allowed_skills=["demo-skill"],
-            max_timeout_seconds=45,
-            required_args=["name"],
-            allowed_args=["count"],
-        )
 
 
 def test_error_codes_include_sandbox_variants() -> None:

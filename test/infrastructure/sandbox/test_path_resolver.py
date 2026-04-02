@@ -95,3 +95,23 @@ def test_resolve_rejects_windows_drive_script_forms(tmp_path: Path) -> None:
         allowed, resolved_path = resolver.resolve_script_path("demo-skill", script)
         assert allowed is False
         assert resolved_path is None
+
+
+def test_resolve_normalizes_backslash_script_separators(tmp_path: Path) -> None:
+    """Resolver should treat backslash script separators as normal path separators."""
+    resolver = PathResolver(tmp_path)
+
+    allowed, resolved_path = resolver.resolve_script_path("demo-skill", r"scripts\nested\run.py")
+
+    assert allowed is True
+    assert resolved_path == (tmp_path / "demo-skill" / "scripts" / "nested" / "run.py").resolve()
+
+
+def test_resolve_rejects_backslash_parent_traversal(tmp_path: Path) -> None:
+    """Resolver should deny parent traversal even when using backslashes."""
+    resolver = PathResolver(tmp_path)
+
+    allowed, resolved_path = resolver.resolve_script_path("demo-skill", r"scripts\..\run.py")
+
+    assert allowed is False
+    assert resolved_path is None

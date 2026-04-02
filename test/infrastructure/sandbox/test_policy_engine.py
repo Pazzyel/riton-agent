@@ -15,20 +15,20 @@ def _prepare_src_import_path() -> None:
 _prepare_src_import_path()
 
 from infrastructure.sandbox.models import ScriptPolicy
-from infrastructure.sandbox.policy_engine import PolicyEngine
+from infrastructure.sandbox.policy_engine import (
+    PolicyEngine,
+    build_policy_key,
+    infer_interpreter_for_script,
+    scan_script_policies,
+)
 
 
 def _build_policy() -> ScriptPolicy:
     """Create a baseline policy used by policy engine tests."""
     return ScriptPolicy(
-        allowed_skills=["skill-a"],
-        max_timeout_seconds=30,
         skill_name="skill-a",
         script="scripts/hello.py",
-        interpreter="python",
-        required_args=["name"],
-        allowed_args=["name", "count"],
-        arg_types={"name": str, "count": int},
+        interpreter="python3",
     )
 
 
@@ -39,7 +39,7 @@ def test_policy_engine_accepts_valid_input() -> None:
     is_valid, reason = engine.evaluate(
         skill_name="skill-a",
         script="scripts/hello.py",
-        interpreter="python",
+        interpreter="python3",
         args={"name": "alex", "count": 2},
     )
 
@@ -62,46 +62,60 @@ def test_policy_engine_rejects_when_no_policy_matches() -> None:
     assert reason == "No policy matched skill/script/interpreter"
 
 
-def test_policy_engine_rejects_missing_required_args() -> None:
-    """Policy engine should deny invocations with missing required arguments."""
+def test_policy_engine_accepts_backslash_script_path() -> None:
+    """Policy engine should normalize incoming script separators before matching."""
     engine = PolicyEngine([_build_policy()])
 
     is_valid, reason = engine.evaluate(
         skill_name="skill-a",
-        script="scripts/hello.py",
-        interpreter="python",
+        script=r"scripts\hello.py",
+        interpreter="python3",
         args={},
     )
 
-    assert is_valid is False
-    assert reason == "Missing required argument: name"
+    assert is_valid is True
+    assert reason == "ok"
 
 
-def test_policy_engine_rejects_unknown_args() -> None:
-    """Policy engine should deny unknown arguments not in allowed args."""
-    engine = PolicyEngine([_build_policy()])
+def test_infer_interpreter_for_script_supports_known_suffixes() -> None:
+    """Interpreter inference should map supported script suffixes."""
+    assert infer_interpreter_for_script("scripts/run.py") == "python3"
+    assert infer_interpreter_for_script("scripts/run.js") == "node"
+    assert infer_interpreter_for_script("scripts/run.ts") == "node"
 
-    is_valid, reason = engine.evaluate(
+
+def test_infer_interpreter_for_script_returns_none_for_unknown_suffix() -> None:
+    """Interpreter inference should return None for unsupported suffixes."""
+    assert infer_interpreter_for_script("scripts/run.sh") is None
+    assert infer_interpreter_for_script("scripts/run") is None
+
+
+def test_build_policy_key_normalizes_path_separators() -> None:
+    """Policy key builder should normalize slash and backslash separators."""
+    assert build_policy_key("skill-a", r"scripts\\nested\\run.py") == "skill-a/scripts/nested/run.py"
+
+
+def test_scan_script_policies_collects_supported_script_entries(tmp_path: Path) -> None:
+    """Policy scanning should include supported suffixes and skip unknown files."""
+    skill_dir = tmp_path / "skill-a" / "scripts" / "nested"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "run.py").write_text("print('ok')", encoding="utf-8")
+    (skill_dir / "worker.ts").write_text("console.log('ok')", encoding="utf-8")
+    (skill_dir / "README.md").write_text("ignored", encoding="utf-8")
+
+    policies = scan_script_policies(tmp_path)
+
+    assert set(policies.keys()) == {
+        "skill-a/scripts/nested/run.py",
+        "skill-a/scripts/nested/worker.ts",
+    }
+    assert policies["skill-a/scripts/nested/run.py"] == ScriptPolicy(
         skill_name="skill-a",
-        script="scripts/hello.py",
-        interpreter="python",
-        args={"name": "alex", "unexpected": True},
+        script="scripts/nested/run.py",
+        interpreter="python3",
     )
-
-    assert is_valid is False
-    assert reason == "Unknown argument: unexpected"
-
-
-def test_policy_engine_rejects_type_mismatch() -> None:
-    """Policy engine should deny arguments with invalid runtime types."""
-    engine = PolicyEngine([_build_policy()])
-
-    is_valid, reason = engine.evaluate(
+    assert policies["skill-a/scripts/nested/worker.ts"] == ScriptPolicy(
         skill_name="skill-a",
-        script="scripts/hello.py",
-        interpreter="python",
-        args={"name": "alex", "count": "two"},
+        script="scripts/nested/worker.ts",
+        interpreter="node",
     )
-
-    assert is_valid is False
-    assert reason == "Invalid type for argument count: expected int"

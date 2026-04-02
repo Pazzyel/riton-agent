@@ -16,7 +16,9 @@ def _prepare_src_import_path() -> None:
 _prepare_src_import_path()
 
 from infrastructure.sandbox.models import ScriptExecutionStatus, ScriptPolicy
+from infrastructure.sandbox.policy_engine import build_policy_key
 from infrastructure.sandbox.local_runner import RunnerResult
+import infrastructure.sandbox.skill_script_service as skill_script_service_module
 from infrastructure.sandbox.skill_script_service import SkillScriptService
 
 
@@ -33,44 +35,6 @@ class _PathResolverStub:
         """Return configured path resolution result."""
         self.calls.append((skill_name, script))
         return self.allowed, self.resolved_path
-
-
-class _PolicyEngineStub:
-    """Stub policy engine returning a preconfigured decision."""
-
-    def __init__(
-        self,
-        allowed: bool,
-        reason: str,
-        matched_policy: ScriptPolicy | None = None,
-    ) -> None:
-        """Store policy decision used by tests."""
-        self.allowed = allowed
-        self.reason = reason
-        self.matched_policy = matched_policy
-        self.calls: list[tuple[str, str, str, dict[str, object]]] = []
-
-    def evaluate(
-        self,
-        skill_name: str,
-        script: str,
-        interpreter: str,
-        args: dict[str, object],
-    ) -> tuple[bool, str]:
-        """Return configured policy evaluation result."""
-        self.calls.append((skill_name, script, interpreter, args))
-        return self.allowed, self.reason
-
-    def evaluate_with_policy(
-        self,
-        skill_name: str,
-        script: str,
-        interpreter: str,
-        args: dict[str, object],
-    ) -> tuple[bool, str, ScriptPolicy | None]:
-        """Return configured policy decision plus matched policy details."""
-        self.calls.append((skill_name, script, interpreter, args))
-        return self.allowed, self.reason, self.matched_policy
 
 
 class _RunnerStub:
@@ -102,8 +66,6 @@ class _AuditLoggerStub:
 def _build_policy() -> ScriptPolicy:
     """Create a baseline policy for build_default tests."""
     return ScriptPolicy(
-        allowed_skills=["skill-a"],
-        max_timeout_seconds=30,
         skill_name="skill-a",
         script="scripts/run.py",
         interpreter="python",
@@ -113,12 +75,11 @@ def _build_policy() -> ScriptPolicy:
 def test_execute_denies_when_path_resolution_fails() -> None:
     """Service should deny execution when path resolution is rejected."""
     path_resolver = _PathResolverStub(allowed=False, resolved_path=None)
-    policy_engine = _PolicyEngineStub(allowed=True, reason="ok")
     runner = _RunnerStub(
         RunnerResult(exit_code=0, timed_out=False, stdout_tail="", stderr_tail="", duration_ms=1)
     )
     audit_logger = _AuditLoggerStub()
-    service = SkillScriptService(path_resolver, policy_engine, runner, audit_logger)
+    service = SkillScriptService(path_resolver, {"skill-a"}, {build_policy_key("skill-a", "scripts/run.py"): _build_policy()}, runner, audit_logger)
 
     result = service.execute_skill_script("skill-a", "scripts/run.py", {"name": "alex"}, {})
 
@@ -130,21 +91,39 @@ def test_execute_denies_when_path_resolution_fails() -> None:
 
 
 def test_execute_denies_when_policy_engine_rejects_request() -> None:
-    """Service should deny execution when policy evaluation fails."""
+    """Service should deny execution when skill is not allowed."""
     path = Path("/tmp/fake.py")
     path_resolver = _PathResolverStub(allowed=True, resolved_path=path)
-    policy_engine = _PolicyEngineStub(allowed=False, reason="policy denied")
     runner = _RunnerStub(
         RunnerResult(exit_code=0, timed_out=False, stdout_tail="", stderr_tail="", duration_ms=1)
     )
     audit_logger = _AuditLoggerStub()
-    service = SkillScriptService(path_resolver, policy_engine, runner, audit_logger)
+    service = SkillScriptService(path_resolver, set(), {build_policy_key("skill-a", "scripts/run.py"): _build_policy()}, runner, audit_logger)
 
     result = service.execute_skill_script("skill-a", "scripts/run.py", {"name": "alex"}, {})
 
     assert result.status is ScriptExecutionStatus.DENIED
     assert result.exit_code is None
-    assert "policy denied" in result.stderr_tail
+    assert "Skill not allowed" in result.stderr_tail
+    assert runner.calls == []
+    assert len(audit_logger.summaries) == 1
+
+
+def test_execute_denies_when_policy_key_missing() -> None:
+    """Service should deny execution when no policy map entry exists."""
+    path = Path("/tmp/fake.py")
+    path_resolver = _PathResolverStub(allowed=True, resolved_path=path)
+    runner = _RunnerStub(
+        RunnerResult(exit_code=0, timed_out=False, stdout_tail="", stderr_tail="", duration_ms=1)
+    )
+    audit_logger = _AuditLoggerStub()
+    service = SkillScriptService(path_resolver, {"skill-a"}, {}, runner, audit_logger)
+
+    result = service.execute_skill_script("skill-a", "scripts/run.py", {"name": "alex"}, {})
+
+    assert result.status is ScriptExecutionStatus.DENIED
+    assert result.exit_code is None
+    assert "No policy matched skill/script" in result.stderr_tail
     assert runner.calls == []
     assert len(audit_logger.summaries) == 1
 
@@ -153,12 +132,11 @@ def test_execute_denies_when_timeout_value_is_invalid() -> None:
     """Service should deny execution when timeout value cannot be parsed."""
     script_path = Path("/sandbox/skill-a/scripts/run.py")
     path_resolver = _PathResolverStub(allowed=True, resolved_path=script_path)
-    policy_engine = _PolicyEngineStub(allowed=True, reason="ok")
     runner = _RunnerStub(
         RunnerResult(exit_code=0, timed_out=False, stdout_tail="", stderr_tail="", duration_ms=1)
     )
     audit_logger = _AuditLoggerStub()
-    service = SkillScriptService(path_resolver, policy_engine, runner, audit_logger)
+    service = SkillScriptService(path_resolver, {"skill-a"}, {build_policy_key("skill-a", "scripts/run.py"): _build_policy()}, runner, audit_logger)
 
     result = service.execute_skill_script(
         "skill-a",
@@ -178,12 +156,11 @@ def test_execute_denies_when_timeout_is_non_positive() -> None:
     """Service should deny execution when timeout value is non-positive."""
     script_path = Path("/sandbox/skill-a/scripts/run.py")
     path_resolver = _PathResolverStub(allowed=True, resolved_path=script_path)
-    policy_engine = _PolicyEngineStub(allowed=True, reason="ok")
     runner = _RunnerStub(
         RunnerResult(exit_code=0, timed_out=False, stdout_tail="", stderr_tail="", duration_ms=1)
     )
     audit_logger = _AuditLoggerStub()
-    service = SkillScriptService(path_resolver, policy_engine, runner, audit_logger)
+    service = SkillScriptService(path_resolver, {"skill-a"}, {build_policy_key("skill-a", "scripts/run.py"): _build_policy()}, runner, audit_logger)
 
     result = service.execute_skill_script(
         "skill-a",
@@ -203,19 +180,17 @@ def test_execute_denies_when_timeout_exceeds_policy_max() -> None:
     """Service should deny execution when timeout exceeds policy maximum."""
     script_path = Path("/sandbox/skill-a/scripts/run.py")
     matched_policy = ScriptPolicy(
-        allowed_skills=["skill-a"],
-        max_timeout_seconds=5,
         skill_name="skill-a",
         script="scripts/run.py",
         interpreter="python",
+        max_timeout_seconds=5,
     )
     path_resolver = _PathResolverStub(allowed=True, resolved_path=script_path)
-    policy_engine = _PolicyEngineStub(allowed=True, reason="ok", matched_policy=matched_policy)
     runner = _RunnerStub(
         RunnerResult(exit_code=0, timed_out=False, stdout_tail="", stderr_tail="", duration_ms=1)
     )
     audit_logger = _AuditLoggerStub()
-    service = SkillScriptService(path_resolver, policy_engine, runner, audit_logger)
+    service = SkillScriptService(path_resolver, {"skill-a"}, {build_policy_key("skill-a", "scripts/run.py"): matched_policy}, runner, audit_logger)
 
     result = service.execute_skill_script(
         "skill-a",
@@ -235,7 +210,7 @@ def test_execute_runs_interpreter_script_and_serialized_args() -> None:
     """Service should run interpreter and script with serialized arguments."""
     script_path = Path("/sandbox/skill-a/scripts/run.py")
     path_resolver = _PathResolverStub(allowed=True, resolved_path=script_path)
-    policy_engine = _PolicyEngineStub(allowed=True, reason="ok")
+    policy = ScriptPolicy(skill_name="skill-a", script="scripts/run.py", interpreter="python3")
     runner = _RunnerStub(
         RunnerResult(
             exit_code=0,
@@ -246,19 +221,18 @@ def test_execute_runs_interpreter_script_and_serialized_args() -> None:
         )
     )
     audit_logger = _AuditLoggerStub()
-    service = SkillScriptService(path_resolver, policy_engine, runner, audit_logger)
+    service = SkillScriptService(path_resolver, {"skill-a"}, {build_policy_key("skill-a", "scripts/run.py"): policy}, runner, audit_logger)
 
     result = service.execute_skill_script(
         "skill-a",
         "scripts/run.py",
         {"count": 2, "name": "alex"},
-        {"interpreter": "python3", "timeout_seconds": 9},
+        {"interpreter": "python", "timeout_seconds": 9},
     )
 
     assert result.status is ScriptExecutionStatus.COMPLETED
     assert result.exit_code == 0
     assert result.stdout_tail == "done"
-    assert policy_engine.calls[0][2] == "python3"
     assert runner.calls[0][0] == [
         "python3",
         str(script_path),
@@ -266,13 +240,13 @@ def test_execute_runs_interpreter_script_and_serialized_args() -> None:
     ]
     assert runner.calls[0][1] == 9
     assert len(audit_logger.summaries) == 1
+    assert audit_logger.summaries[0]["reason"] == "completed"
 
 
 def test_execute_maps_timeout_to_timed_out_status() -> None:
     """Service should map runner timeout to timed out execution status."""
     script_path = Path("/sandbox/skill-a/scripts/run.py")
     path_resolver = _PathResolverStub(allowed=True, resolved_path=script_path)
-    policy_engine = _PolicyEngineStub(allowed=True, reason="ok")
     runner = _RunnerStub(
         RunnerResult(
             exit_code=None,
@@ -283,20 +257,20 @@ def test_execute_maps_timeout_to_timed_out_status() -> None:
         )
     )
     audit_logger = _AuditLoggerStub()
-    service = SkillScriptService(path_resolver, policy_engine, runner, audit_logger)
+    service = SkillScriptService(path_resolver, {"skill-a"}, {build_policy_key("skill-a", "scripts/run.py"): _build_policy()}, runner, audit_logger)
 
     result = service.execute_skill_script("skill-a", "scripts/run.py", {}, {})
 
     assert result.status is ScriptExecutionStatus.TIMED_OUT
     assert result.exit_code is None
     assert len(audit_logger.summaries) == 1
+    assert audit_logger.summaries[0]["reason"] == "timed_out"
 
 
 def test_execute_maps_non_zero_exit_to_failed_status() -> None:
     """Service should map non-zero runner exit code to failed status."""
     script_path = Path("/sandbox/skill-a/scripts/run.py")
     path_resolver = _PathResolverStub(allowed=True, resolved_path=script_path)
-    policy_engine = _PolicyEngineStub(allowed=True, reason="ok")
     runner = _RunnerStub(
         RunnerResult(
             exit_code=17,
@@ -307,21 +281,83 @@ def test_execute_maps_non_zero_exit_to_failed_status() -> None:
         )
     )
     audit_logger = _AuditLoggerStub()
-    service = SkillScriptService(path_resolver, policy_engine, runner, audit_logger)
+    service = SkillScriptService(path_resolver, {"skill-a"}, {build_policy_key("skill-a", "scripts/run.py"): _build_policy()}, runner, audit_logger)
 
     result = service.execute_skill_script("skill-a", "scripts/run.py", {}, {})
 
     assert result.status is ScriptExecutionStatus.FAILED
     assert result.exit_code == 17
     assert len(audit_logger.summaries) == 1
+    assert audit_logger.summaries[0]["reason"] == "failed"
+
+
+def test_execute_falls_back_to_python_when_python3_unavailable(
+    monkeypatch: object,
+) -> None:
+    """Service should run python when policy prefers unavailable python3."""
+    script_path = Path("/sandbox/skill-a/scripts/run.py")
+    path_resolver = _PathResolverStub(allowed=True, resolved_path=script_path)
+    policy = ScriptPolicy(skill_name="skill-a", script="scripts/run.py", interpreter="python3")
+    runner = _RunnerStub(
+        RunnerResult(exit_code=0, timed_out=False, stdout_tail="ok", stderr_tail="", duration_ms=2)
+    )
+    audit_logger = _AuditLoggerStub()
+    service = SkillScriptService(
+        path_resolver,
+        {"skill-a"},
+        {build_policy_key("skill-a", "scripts/run.py"): policy},
+        runner,
+        audit_logger,
+    )
+
+    def _fake_which(command: str) -> str | None:
+        """Return only python executable path for interpreter resolution tests."""
+        if command == "python3":
+            return None
+        if command == "python":
+            return "/usr/bin/python"
+        return None
+
+    monkeypatch.setattr(skill_script_service_module.shutil, "which", _fake_which)
+
+    result = service.execute_skill_script("skill-a", "scripts/run.py", {"name": "alex"}, {})
+
+    assert result.status is ScriptExecutionStatus.COMPLETED
+    assert runner.calls[0][0][0] == "python"
+
+
+def test_execute_normalizes_script_path_before_policy_and_path_resolution() -> None:
+    """Service should normalize script separators before lookups and path checks."""
+    script_path = Path("/sandbox/skill-a/scripts/run.py")
+    path_resolver = _PathResolverStub(allowed=True, resolved_path=script_path)
+    policy = ScriptPolicy(skill_name="skill-a", script="scripts/run.py", interpreter="python3")
+    runner = _RunnerStub(
+        RunnerResult(exit_code=0, timed_out=False, stdout_tail="ok", stderr_tail="", duration_ms=2)
+    )
+    audit_logger = _AuditLoggerStub()
+    service = SkillScriptService(
+        path_resolver,
+        {"skill-a"},
+        {build_policy_key("skill-a", "scripts/run.py"): policy},
+        runner,
+        audit_logger,
+    )
+
+    result = service.execute_skill_script("skill-a", r"scripts\run.py", {"name": "alex"}, {})
+
+    assert result.status is ScriptExecutionStatus.COMPLETED
+    assert path_resolver.calls == [("skill-a", "scripts/run.py")]
 
 
 def test_build_default_falls_back_to_dot_riton_skills(monkeypatch: object) -> None:
     """build_default should use .riton/skills when infra config is unavailable."""
     monkeypatch.delitem(sys.modules, "config", raising=False)
     monkeypatch.delitem(sys.modules, "config.infra_config", raising=False)
+    monkeypatch.setattr(skill_script_service_module, "scan_script_policies", lambda skills_root: {})
 
-    service = SkillScriptService.build_default([_build_policy()])
+    monkeypatch.setattr(skill_script_service_module, "get_allowed_skills", lambda: {"skill-a"})
+
+    service = SkillScriptService.build_default()
 
     assert service._path_resolver._skills_root == Path(".riton/skills").resolve()
 
@@ -341,7 +377,61 @@ def test_build_default_prefers_configured_skill_path(monkeypatch: object, tmp_pa
     infra_config_module.infra_config = _InfraConfig(str(tmp_path / "skills-root"))
     monkeypatch.setitem(sys.modules, "config", config_module)
     monkeypatch.setitem(sys.modules, "config.infra_config", infra_config_module)
+    monkeypatch.setattr(skill_script_service_module, "get_allowed_skills", lambda: {"skill-a"})
+    monkeypatch.setattr(skill_script_service_module, "scan_script_policies", lambda skills_root: {})
 
-    service = SkillScriptService.build_default([_build_policy()])
+    service = SkillScriptService.build_default()
 
     assert service._path_resolver._skills_root == (tmp_path / "skills-root").resolve()
+
+
+def test_build_default_loads_allowed_skills_and_policy_map(
+    monkeypatch: object, tmp_path: Path
+) -> None:
+    """build_default should load allowed skills and scanned policy map."""
+    config_module = ModuleType("config")
+    infra_config_module = ModuleType("config.infra_config")
+
+    class _InfraConfig:
+        """Minimal config object for testing configured skill path."""
+
+        def __init__(self, skill_path: str) -> None:
+            """Store configured skill path."""
+            self.skill_path = skill_path
+
+    scanned_policy = ScriptPolicy(
+        skill_name="skill-b",
+        script="scripts/run.py",
+        interpreter="python3",
+    )
+    policy_map = {build_policy_key("skill-b", "scripts/run.py"): scanned_policy}
+
+    infra_config_module.infra_config = _InfraConfig(str(tmp_path / "skills-root"))
+    monkeypatch.setitem(sys.modules, "config", config_module)
+    monkeypatch.setitem(sys.modules, "config.infra_config", infra_config_module)
+    monkeypatch.setattr(skill_script_service_module, "get_allowed_skills", lambda: {"skill-b"})
+    monkeypatch.setattr(skill_script_service_module, "scan_script_policies", lambda skills_root: policy_map)
+
+    service = SkillScriptService.build_default()
+
+    assert service._allowed_skills == {"skill-b"}
+    assert service._policy_map == policy_map
+
+
+def test_build_default_executes_demo_with_default_allowlist(monkeypatch: object) -> None:
+    """build_default should run demo script when default allowlist is active."""
+    monkeypatch.delenv("RITON_ALLOWED_SKILLS", raising=False)
+
+    service = SkillScriptService.build_default()
+    result = service.execute_skill_script(
+        "demo",
+        "scripts/echo_args.py",
+        {"message": "hello from test", "count": 1},
+        {"timeout_seconds": 10},
+    )
+
+    assert result.status in {
+        ScriptExecutionStatus.COMPLETED,
+        ScriptExecutionStatus.FAILED,
+    }
+    assert result.status is not ScriptExecutionStatus.DENIED
