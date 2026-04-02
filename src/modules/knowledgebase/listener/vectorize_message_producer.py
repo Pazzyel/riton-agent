@@ -6,7 +6,7 @@ from common.async_task.abstract_message_producer import AbstractMessageProducer
 from modules.knowledgebase.model.knowledgebase_entity import VectorStatus
 from modules.knowledgebase.repository.knowledgebase_repository import KnowledgeBaseRepository
 
-from common.app_config import app_config
+from config.app_config import app_config
 from infrastructure.database.connection import async_session_factory
 
 logger = logging.getLogger(__name__)

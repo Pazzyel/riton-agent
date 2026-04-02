@@ -7,7 +7,7 @@ from typing import TypeVar, Generic, Dict, Any, Optional, ClassVar, Coroutine
 
 from rocketmq import ClientConfiguration, Credentials, Message, Producer
 
-from common.app_config import app_config
+from config.app_config import app_config
 
 logger = logging.getLogger(__name__)
 

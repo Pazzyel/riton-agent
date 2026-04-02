@@ -24,7 +24,7 @@ def test_shop_vector_service_builds_index_url(monkeypatch) -> None:
     fake_ai_config_module.ai_config = FakeAiConfig()
     monkeypatch.setitem(sys.modules, "common.ai_config", fake_ai_config_module)
 
-    from common.app_config import app_config
+    from config.app_config import app_config
     from modules.knowledgebase.service.knowledgebase_shop_vector_service import (
         KnowledgeBaseShopVectorService,
     )

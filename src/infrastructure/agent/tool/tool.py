@@ -1,7 +1,9 @@
 from typing import List
 
 from langchain_core.tools import BaseTool
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
+from config.ai_config import ai_config
 from src.infrastructure.agent.tool.tool_search import (
     DeferredToolRegistry,
     reset_deferred_registry,
@@ -12,8 +14,7 @@ from src.infrastructure.agent.tool.tool_search import (
 
 def is_tool_search_enabled() -> bool:
     """判断是否启用工具渐进式加载能力。"""
-    # TODO: 从应用配置读取 tool_search.enabled 开关。
-    return True
+    return ai_config.enable_tool_search
 
 
 def _load_builtin_tools(
@@ -30,17 +31,19 @@ def _load_builtin_tools(
     return []
 
 
-def _load_external_tools(
+async def _load_external_tools(
     model_name: str | None = None,
     groups: List[str] | None = None,
 ) -> List[BaseTool]:
     """加载外部工具（例如 MCP / 三方工具服务）。"""
     # TODO: 从外部工具配置读取已启用工具源（例如 MCP server 列表）。
+    mcp_client: MultiServerMCPClient = MultiServerMCPClient(ai_config.mcp_server_config)
     # TODO: 拉取外部工具缓存或实时工具定义，并转换为 BaseTool。
+    mcp_tools: List[BaseTool] = await mcp_client.get_tools()
     # TODO: 按 model_name 与 groups 过滤外部工具可见性。
     _ = model_name
     _ = groups
-    return []
+    return mcp_tools
 
 
 def get_available_tools(

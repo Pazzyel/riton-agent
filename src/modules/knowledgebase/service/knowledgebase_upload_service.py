@@ -4,7 +4,7 @@ from typing import Dict, Any, Optional
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from common.app_config import app_config
+from config.app_config import app_config
 from common.exceptions import BusinessException, ErrorCode
 from infrastructure.file.file_hash_service import FileHashService
 from infrastructure.file.file_storage_service import FileStorageService

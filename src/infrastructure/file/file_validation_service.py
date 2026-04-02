@@ -2,7 +2,7 @@ from typing import List
 
 from fastapi import UploadFile
 
-from common.app_config import app_config
+from config.app_config import app_config
 from common.exceptions import BusinessException, ErrorCode
 
 

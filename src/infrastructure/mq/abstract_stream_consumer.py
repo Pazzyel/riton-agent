@@ -13,7 +13,7 @@ from rocketmq import (
     PushConsumer,
 )
 
-from common.app_config import app_config
+from config.app_config import app_config
 
 logger = logging.getLogger(__name__)
 

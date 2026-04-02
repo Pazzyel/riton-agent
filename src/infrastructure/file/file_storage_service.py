@@ -10,7 +10,7 @@ from botocore.exceptions import ClientError
 from fastapi import UploadFile
 from pypinyin import lazy_pinyin
 
-from common.app_config import app_config
+from config.app_config import app_config
 
 
 class FileStorageService:

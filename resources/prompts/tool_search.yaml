@@ -1,0 +1,8 @@
+tool_search:
+  system: |
+    
+    当前系统并没有直接提供所有tool的调用信息供你直接使用，只提供了工具的名称，一行一个
+    <available-deferred-tools>
+    {names}
+    </available-deferred-tools>
+    你可用调用`tool_search`工具获取你需要的具体工具的信息

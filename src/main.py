@@ -7,10 +7,9 @@ from fastapi.responses import JSONResponse
 from langgraph.checkpoint.mysql.aio import AIOMySQLSaver
 from modules.knowledgebase.router import knowledgebase_router, rag_chat_router
 
-from common.app_config import app_config
+from config.app_config import app_config
 from common.dependencies import (
     blog_vectorize_message_consumer,
-    knowledgebase_query_service,
     shop_vectorize_message_consumer,
     vectorize_message_consumer,
     voucher_vectorize_message_consumer,

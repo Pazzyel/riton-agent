@@ -2,7 +2,7 @@
 
 from langchain_core.documents import Document
 
-from common.app_config import app_config
+from config.app_config import app_config
 from infrastructure.vector.vector_service import VectorService
 from modules.tablevectorize.model.dto.shop_vectorize_dto import ShopVectorizeDto
 

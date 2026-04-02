@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from common.app_config import app_config
+from config.app_config import app_config
 from infrastructure.mq.abstract_message_producer import AbstractMessageProducer
 from modules.tablevectorize.model.dto.blog_vectorize_dto import BlogVectorizeDto
 

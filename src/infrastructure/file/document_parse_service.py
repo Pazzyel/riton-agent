@@ -6,7 +6,7 @@ from io import BytesIO
 from fastapi import UploadFile
 from unstructured.partition.auto import partition
 
-from common.app_config import app_config
+from config.app_config import app_config
 
 logger = logging.getLogger(__name__)
 

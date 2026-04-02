@@ -1,8 +1,8 @@
 from langchain_core.vectorstores.base import VectorStore
 from langchain_elasticsearch import AsyncElasticsearchStore, AsyncDenseVectorStrategy
 
-from common.ai_config import ai_config
-from common.app_config import app_config
+from config.ai_config import ai_config
+from config.app_config import app_config
 
 
 def create_vector_store(index_url: str) -> VectorStore:

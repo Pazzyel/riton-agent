@@ -28,4 +28,14 @@ class AIConfigProperties:
     min_score_short: float = 0.18
     min_score_default: float = 0.28
 
+    enable_tool_search: bool = True # 允许使用工具搜索，此时大部分工具变为延迟加载的形式
+
+    mcp_server_config: dict = {
+            "shop": {
+                "transport": "http",  # HTTP-based remote server
+                # Ensure you start your weather server on port 8000
+                "url": "https://localhost:8000/mcp",
+            }
+        }
+
 ai_config = AIConfigProperties()

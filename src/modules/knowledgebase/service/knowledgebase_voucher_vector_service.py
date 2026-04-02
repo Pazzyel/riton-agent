@@ -5,8 +5,8 @@ import tiktoken
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from common.ai_config import ai_config
-from common.app_config import app_config
+from config.ai_config import ai_config
+from config.app_config import app_config
 from common.exceptions import BusinessException, ErrorCode
 from infrastructure.vector.vector_service import VectorService
 

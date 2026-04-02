@@ -57,7 +57,7 @@ def _build_voucher_dto(operation: str) -> "VoucherVectorizeDto":
 def test_voucher_vector_service_uses_voucher_index_name(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure constructor initializes VectorService with voucher index."""
     _prepare_src_import_path()
-    from common.app_config import app_config
+    from config.app_config import app_config
     from modules.tablevectorize.service.voucher_vectorize_service import VoucherVectorizeService
 
     captured: dict[str, str] = {}

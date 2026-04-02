@@ -7,7 +7,7 @@ from modules.knowledgebase.listener.vectorize_message_producer import VectorizeM
 from modules.knowledgebase.service.knowledgebase_vectorize_consumer_service import \
     KnowledgeBaseVectorizeConsumerService
 
-from common.app_config import app_config
+from config.app_config import app_config
 
 logger = logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ from typing import Any, Coroutine, Optional
 
 from pydantic import ValidationError
 
-from common.app_config import app_config
+from config.app_config import app_config
 from infrastructure.mq.abstract_stream_consumer import AbstractStreamConsumer
 from modules.tablevectorize.listener.shop_vectorize_message_producer import ShopVectorizeMessageProducer
 from modules.tablevectorize.model.dto.shop_vectorize_dto import ShopVectorizeDto

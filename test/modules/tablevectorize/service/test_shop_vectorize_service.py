@@ -58,7 +58,7 @@ def _build_shop_dto(operation: str) -> "ShopVectorizeDto":
 def test_shop_vector_service_uses_shop_index_name(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure constructor initializes VectorService with shop index."""
     _prepare_src_import_path()
-    from common.app_config import app_config
+    from config.app_config import app_config
     from modules.tablevectorize.service.shop_vectorize_service import ShopVectorizeService
 
     captured: dict[str, str] = {}

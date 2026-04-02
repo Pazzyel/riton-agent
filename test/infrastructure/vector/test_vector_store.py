@@ -9,8 +9,8 @@ def test_vector_store_uses_full_index_url(monkeypatch) -> None:
     src_root: Path = project_root / "src"
     sys.path.insert(0, str(src_root))
 
-    from common.ai_config import ai_config
-    from common.app_config import app_config
+    from config.ai_config import ai_config
+    from config.app_config import app_config
     from infrastructure.vector import vector_store
 
     class FakeStore:

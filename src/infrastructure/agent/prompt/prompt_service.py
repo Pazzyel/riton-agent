@@ -8,6 +8,8 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.prompts.chat import MessageLikeRepresentation, MessagesPlaceholder
 from langchain_core.runnables import RunnableConfig
 
+from config.ai_config import ai_config
+
 current_dir = Path(__file__).parent
 root_dir = current_dir.parents[2]
 prompt_cache: Dict[str, ChatPromptTemplate] = {} # 全局prompt缓存
@@ -38,6 +40,9 @@ async def load_prompt(node_name: str, with_short_memory: bool = False) -> ChatPr
     # 先加载系统提示词
     if Role.SYSTEM.value in node_config:
         messages.append((Role.SYSTEM.value, node_config[Role.SYSTEM.value]))
+    # 加载延迟工具提示词
+    if ai_config.enable_tool_search:
+        messages.append((Role.SYSTEM.value, node_config["tool_search"]))
     # 再加载历史提示词
     if with_short_memory:
         messages.append(MessagesPlaceholder(variable_name="messages"))
