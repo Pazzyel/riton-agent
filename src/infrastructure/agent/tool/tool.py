@@ -36,17 +36,16 @@ async def _load_external_tools(
     groups: List[str] | None = None,
 ) -> List[BaseTool]:
     """加载外部工具（例如 MCP / 三方工具服务）。"""
-    # TODO: 从外部工具配置读取已启用工具源（例如 MCP server 列表）。
+    # 从外部工具配置读取已启用工具源（例如 MCP server 列表）。
     mcp_client: MultiServerMCPClient = MultiServerMCPClient(ai_config.mcp_server_config)
-    # TODO: 拉取外部工具缓存或实时工具定义，并转换为 BaseTool。
+    # 拉取外部工具缓存或实时工具定义，并转换为 BaseTool。
     mcp_tools: List[BaseTool] = await mcp_client.get_tools()
-    # TODO: 按 model_name 与 groups 过滤外部工具可见性。
     _ = model_name
     _ = groups
     return mcp_tools
 
 
-def get_available_tools(
+async def get_available_tools(
     model_name: str | None = None,
     groups: List[str] | None = None,
     include_external: bool = True,
@@ -66,7 +65,7 @@ def get_available_tools(
     # 根据参数决定是否加载外部工具。
     external_tools: List[BaseTool] = []
     if include_external:
-        external_tools = _load_external_tools(model_name=model_name, groups=groups)
+        external_tools = await _load_external_tools(model_name=model_name, groups=groups)
 
     # 未启用渐进式加载时，内置工具和外部工具都直接返回。
     if not is_tool_search_enabled():
@@ -80,3 +79,23 @@ def get_available_tools(
 
     # 将 tool_search 暴露给模型，用于按需拉取延迟工具 schema。
     return builtin_tools + [tool_search]
+
+
+async def get_all_tools(
+    model_name: str | None = None,
+    groups: List[str] | None = None,
+    include_external: bool = True,
+    subagent_enabled: bool = False,
+) -> List[BaseTool]:
+    """获取完整工具列表，供 ToolNode 等执行侧使用。"""
+    builtin_tools: List[BaseTool] = _load_builtin_tools(
+        model_name=model_name,
+        groups=groups,
+        subagent_enabled=subagent_enabled,
+    )
+
+    external_tools: List[BaseTool] = []
+    if include_external:
+        external_tools = await _load_external_tools(model_name=model_name, groups=groups)
+
+    return builtin_tools + external_tools

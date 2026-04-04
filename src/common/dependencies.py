@@ -32,6 +32,9 @@ from modules.table_vectorize.service.shop_vectorize_service import ShopVectorize
 from modules.table_vectorize.service.voucher_vectorize_service import VoucherVectorizeService
 from modules.session.repository.chat_session_repository import ChatSessionRepository
 from modules.session.service.chat_session_service import ChatSessionService
+from modules.shop_search.service.shop_search_agent_service import ShopSearchAgentService
+from modules.shop_search.service.shop_search_rag_service import ShopSearchRagService
+from modules.shop_search.service.shop_search_tool_service import ShopSearchToolService
 
 # ==================== Shared Infrastructure ====================
 
@@ -113,3 +116,12 @@ blog_vectorize_message_consumer = BlogVectorizeMessageConsumer(
 
 chat_session_repository = ChatSessionRepository()
 chat_session_service = ChatSessionService(chat_session_repository)
+
+# ==================== Shop Search Module ====================
+
+shop_search_tool_service = ShopSearchToolService()
+shop_search_rag_service = ShopSearchRagService(blog_vectorize_service)
+shop_search_agent_service = ShopSearchAgentService(
+    shop_search_tool_service,
+    shop_search_rag_service,
+)

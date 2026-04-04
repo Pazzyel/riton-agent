@@ -90,6 +90,9 @@ def test_lifespan_starts_and_shuts_down_all_consumers(monkeypatch) -> None:
     fake_chat_router_module = types.ModuleType("modules.session.router")
     fake_chat_router_module.chat_router = types.SimpleNamespace(router=object())
 
+    fake_shop_search_router_module = types.ModuleType("modules.shop_search.router")
+    fake_shop_search_router_module.shop_search_router = types.SimpleNamespace(router=object())
+
     knowledgebase_consumer = FakeConsumer("knowledgebase")
     shop_consumer = FakeConsumer("shop")
     voucher_consumer = FakeConsumer("voucher")
@@ -114,6 +117,7 @@ def test_lifespan_starts_and_shuts_down_all_consumers(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "langgraph.checkpoint.mysql.aio", fake_aio_module)
     monkeypatch.setitem(sys.modules, "modules.knowledgebase.router", fake_kb_router_module)
     monkeypatch.setitem(sys.modules, "modules.session.router", fake_chat_router_module)
+    monkeypatch.setitem(sys.modules, "modules.shop_search.router", fake_shop_search_router_module)
     monkeypatch.setitem(sys.modules, "common.dependencies", fake_dependencies_module)
     monkeypatch.setitem(sys.modules, "common.app_config", fake_app_config_module)
     monkeypatch.setitem(sys.modules, "common.exceptions", fake_exceptions_module)
