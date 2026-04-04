@@ -1,6 +1,7 @@
 """Blog vectorization service for table change events."""
 
 from langchain_core.documents import Document
+from langchain_core.vectorstores import VectorStoreRetriever
 
 from config.app_config import app_config
 from infrastructure.vector.vector_service import VectorService
@@ -54,3 +55,6 @@ class BlogVectorizeService:
 
         if documents:
             await self.vector_service.add_documents(documents)
+
+    def get_retriever(self) -> VectorStoreRetriever:
+        return self.vector_service.get_retriever()
