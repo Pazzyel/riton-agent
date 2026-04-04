@@ -8,7 +8,7 @@ from typing import Any, TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from modules.tablevectorize.model.dto.shop_vectorize_dto import ShopVectorizeDto
+    from modules.table_vectorize.model.dto.shop_vectorize_dto import ShopVectorizeDto
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def _prepare_src_import_path() -> None:
 def _build_shop_dto(operation: str) -> "ShopVectorizeDto":
     """Build a valid shop dto used by tests."""
     _prepare_src_import_path()
-    from modules.tablevectorize.model.dto.shop_vectorize_dto import ShopVectorizeDto
+    from modules.table_vectorize.model.dto.shop_vectorize_dto import ShopVectorizeDto
 
     now: datetime = datetime.now()
     return ShopVectorizeDto(
@@ -59,7 +59,7 @@ def test_shop_vector_service_uses_shop_index_name(monkeypatch: pytest.MonkeyPatc
     """Ensure constructor initializes VectorService with shop index."""
     _prepare_src_import_path()
     from config.app_config import app_config
-    from modules.tablevectorize.service.shop_vectorize_service import ShopVectorizeService
+    from modules.table_vectorize.service.shop_vectorize_service import ShopVectorizeService
 
     captured: dict[str, str] = {}
 
@@ -76,7 +76,7 @@ def test_shop_vector_service_uses_shop_index_name(monkeypatch: pytest.MonkeyPatc
             return None
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.shop_vectorize_service.VectorService",
+        "modules.table_vectorize.service.shop_vectorize_service.VectorService",
         FakeVectorService,
     )
 
@@ -89,7 +89,7 @@ def test_shop_vector_service_uses_shop_index_name(monkeypatch: pytest.MonkeyPatc
 async def test_handle_message_updates_with_delete_before_add(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure non-delete operation deletes old vector first then adds document."""
     _prepare_src_import_path()
-    from modules.tablevectorize.service.shop_vectorize_service import ShopVectorizeService
+    from modules.table_vectorize.service.shop_vectorize_service import ShopVectorizeService
 
     events: list[tuple[str, object]] = []
 
@@ -106,7 +106,7 @@ async def test_handle_message_updates_with_delete_before_add(monkeypatch: pytest
             events.append(("add", documents))
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.shop_vectorize_service.VectorService",
+        "modules.table_vectorize.service.shop_vectorize_service.VectorService",
         FakeVectorService,
     )
 
@@ -132,7 +132,7 @@ async def test_handle_message_updates_with_delete_before_add(monkeypatch: pytest
 async def test_handle_message_delete_operation_only_deletes(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure delete operation performs delete only without add."""
     _prepare_src_import_path()
-    from modules.tablevectorize.service.shop_vectorize_service import ShopVectorizeService
+    from modules.table_vectorize.service.shop_vectorize_service import ShopVectorizeService
 
     events: list[tuple[str, object]] = []
 
@@ -149,7 +149,7 @@ async def test_handle_message_delete_operation_only_deletes(monkeypatch: pytest.
             events.append(("add", documents))
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.shop_vectorize_service.VectorService",
+        "modules.table_vectorize.service.shop_vectorize_service.VectorService",
         FakeVectorService,
     )
 

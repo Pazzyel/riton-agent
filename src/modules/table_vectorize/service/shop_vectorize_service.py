@@ -4,7 +4,7 @@ from langchain_core.documents import Document
 
 from config.app_config import app_config
 from infrastructure.vector.vector_service import VectorService
-from modules.tablevectorize.model.dto.shop_vectorize_dto import ShopVectorizeDto
+from modules.table_vectorize.model.dto.shop_vectorize_dto import ShopVectorizeDto
 
 
 class ShopVectorizeService:

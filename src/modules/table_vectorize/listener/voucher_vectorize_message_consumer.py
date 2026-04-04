@@ -7,11 +7,11 @@ from pydantic import ValidationError
 
 from config.app_config import app_config
 from infrastructure.mq.abstract_stream_consumer import AbstractStreamConsumer
-from modules.tablevectorize.listener.voucher_vectorize_message_producer import (
+from modules.table_vectorize.listener.voucher_vectorize_message_producer import (
     VoucherVectorizeMessageProducer,
 )
-from modules.tablevectorize.model.dto.voucher_vectorize_dto import VoucherVectorizeDto
-from modules.tablevectorize.service.voucher_vectorize_service import VoucherVectorizeService
+from modules.table_vectorize.model.dto.voucher_vectorize_dto import VoucherVectorizeDto
+from modules.table_vectorize.service.voucher_vectorize_service import VoucherVectorizeService
 
 logger = logging.getLogger(__name__)
 

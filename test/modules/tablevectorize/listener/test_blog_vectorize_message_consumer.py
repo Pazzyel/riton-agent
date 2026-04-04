@@ -103,7 +103,7 @@ def test_parse_payload_success_and_missing_required() -> None:
     """Parse returns dto for valid payload and None for invalid payload."""
     _prepare_src_import_path()
     _install_fake_rocketmq()
-    from modules.tablevectorize.listener.blog_vectorize_message_consumer import (
+    from modules.table_vectorize.listener.blog_vectorize_message_consumer import (
         BlogVectorizeMessageConsumer,
     )
 
@@ -135,7 +135,7 @@ def test_requeue_payload_increments_retry_count() -> None:
     """Requeue sends payload through producer with next retry count."""
     _prepare_src_import_path()
     _install_fake_rocketmq()
-    from modules.tablevectorize.listener.blog_vectorize_message_consumer import (
+    from modules.table_vectorize.listener.blog_vectorize_message_consumer import (
         BlogVectorizeMessageConsumer,
     )
 

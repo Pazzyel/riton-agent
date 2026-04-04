@@ -117,26 +117,26 @@ def test_dependencies_wire_new_vector_services(monkeypatch) -> None:
     fake_shop_vector_module = types.ModuleType("modules.knowledgebase.service.knowledgebase_shop_vector_service")
     fake_voucher_vector_module = types.ModuleType("modules.knowledgebase.service.knowledgebase_voucher_vector_service")
 
-    fake_shop_tv_service_module = types.ModuleType("modules.tablevectorize.service.shop_vectorize_service")
-    fake_voucher_tv_service_module = types.ModuleType("modules.tablevectorize.service.voucher_vectorize_service")
-    fake_blog_tv_service_module = types.ModuleType("modules.tablevectorize.service.blog_vectorize_service")
+    fake_shop_tv_service_module = types.ModuleType("modules.table_vectorize.service.shop_vectorize_service")
+    fake_voucher_tv_service_module = types.ModuleType("modules.table_vectorize.service.voucher_vectorize_service")
+    fake_blog_tv_service_module = types.ModuleType("modules.table_vectorize.service.blog_vectorize_service")
     fake_shop_tv_producer_module = types.ModuleType(
-        "modules.tablevectorize.listener.shop_vectorize_message_producer"
+        "modules.table_vectorize.listener.shop_vectorize_message_producer"
     )
     fake_voucher_tv_producer_module = types.ModuleType(
-        "modules.tablevectorize.listener.voucher_vectorize_message_producer"
+        "modules.table_vectorize.listener.voucher_vectorize_message_producer"
     )
     fake_blog_tv_producer_module = types.ModuleType(
-        "modules.tablevectorize.listener.blog_vectorize_message_producer"
+        "modules.table_vectorize.listener.blog_vectorize_message_producer"
     )
     fake_shop_tv_consumer_module = types.ModuleType(
-        "modules.tablevectorize.listener.shop_vectorize_message_consumer"
+        "modules.table_vectorize.listener.shop_vectorize_message_consumer"
     )
     fake_voucher_tv_consumer_module = types.ModuleType(
-        "modules.tablevectorize.listener.voucher_vectorize_message_consumer"
+        "modules.table_vectorize.listener.voucher_vectorize_message_consumer"
     )
     fake_blog_tv_consumer_module = types.ModuleType(
-        "modules.tablevectorize.listener.blog_vectorize_message_consumer"
+        "modules.table_vectorize.listener.blog_vectorize_message_consumer"
     )
 
     class FakeKnowledgeBaseCountService:
@@ -231,15 +231,15 @@ def test_dependencies_wire_new_vector_services(monkeypatch) -> None:
     monkeypatch.setitem(sys.modules, "modules.knowledgebase.service.knowledgebase_upload_service", fake_upload_service_module)
     monkeypatch.setitem(sys.modules, "modules.knowledgebase.service.knowledgebase_shop_vector_service", fake_shop_vector_module)
     monkeypatch.setitem(sys.modules, "modules.knowledgebase.service.knowledgebase_voucher_vector_service", fake_voucher_vector_module)
-    monkeypatch.setitem(sys.modules, "modules.tablevectorize.service.shop_vectorize_service", fake_shop_tv_service_module)
-    monkeypatch.setitem(sys.modules, "modules.tablevectorize.service.voucher_vectorize_service", fake_voucher_tv_service_module)
-    monkeypatch.setitem(sys.modules, "modules.tablevectorize.service.blog_vectorize_service", fake_blog_tv_service_module)
-    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.shop_vectorize_message_producer", fake_shop_tv_producer_module)
-    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.voucher_vectorize_message_producer", fake_voucher_tv_producer_module)
-    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.blog_vectorize_message_producer", fake_blog_tv_producer_module)
-    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.shop_vectorize_message_consumer", fake_shop_tv_consumer_module)
-    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.voucher_vectorize_message_consumer", fake_voucher_tv_consumer_module)
-    monkeypatch.setitem(sys.modules, "modules.tablevectorize.listener.blog_vectorize_message_consumer", fake_blog_tv_consumer_module)
+    monkeypatch.setitem(sys.modules, "modules.table_vectorize.service.shop_vectorize_service", fake_shop_tv_service_module)
+    monkeypatch.setitem(sys.modules, "modules.table_vectorize.service.voucher_vectorize_service", fake_voucher_tv_service_module)
+    monkeypatch.setitem(sys.modules, "modules.table_vectorize.service.blog_vectorize_service", fake_blog_tv_service_module)
+    monkeypatch.setitem(sys.modules, "modules.table_vectorize.listener.shop_vectorize_message_producer", fake_shop_tv_producer_module)
+    monkeypatch.setitem(sys.modules, "modules.table_vectorize.listener.voucher_vectorize_message_producer", fake_voucher_tv_producer_module)
+    monkeypatch.setitem(sys.modules, "modules.table_vectorize.listener.blog_vectorize_message_producer", fake_blog_tv_producer_module)
+    monkeypatch.setitem(sys.modules, "modules.table_vectorize.listener.shop_vectorize_message_consumer", fake_shop_tv_consumer_module)
+    monkeypatch.setitem(sys.modules, "modules.table_vectorize.listener.voucher_vectorize_message_consumer", fake_voucher_tv_consumer_module)
+    monkeypatch.setitem(sys.modules, "modules.table_vectorize.listener.blog_vectorize_message_consumer", fake_blog_tv_consumer_module)
 
     fake_session_repo_module = types.ModuleType("modules.session.repository.chat_session_repository")
     fake_session_service_module = types.ModuleType("modules.session.service.chat_session_service")

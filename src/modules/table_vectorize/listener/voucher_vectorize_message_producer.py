@@ -6,7 +6,7 @@ from typing import Any
 
 from config.app_config import app_config
 from infrastructure.mq.abstract_message_producer import AbstractMessageProducer
-from modules.tablevectorize.model.dto.voucher_vectorize_dto import VoucherVectorizeDto
+from modules.table_vectorize.model.dto.voucher_vectorize_dto import VoucherVectorizeDto
 
 
 @dataclass

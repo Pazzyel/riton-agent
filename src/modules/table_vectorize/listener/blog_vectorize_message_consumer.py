@@ -7,9 +7,9 @@ from pydantic import ValidationError
 
 from config.app_config import app_config
 from infrastructure.mq.abstract_stream_consumer import AbstractStreamConsumer
-from modules.tablevectorize.listener.blog_vectorize_message_producer import BlogVectorizeMessageProducer
-from modules.tablevectorize.model.dto.blog_vectorize_dto import BlogVectorizeDto
-from modules.tablevectorize.service.blog_vectorize_service import BlogVectorizeService
+from modules.table_vectorize.listener.blog_vectorize_message_producer import BlogVectorizeMessageProducer
+from modules.table_vectorize.model.dto.blog_vectorize_dto import BlogVectorizeDto
+from modules.table_vectorize.service.blog_vectorize_service import BlogVectorizeService
 
 logger = logging.getLogger(__name__)
 

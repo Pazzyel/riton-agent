@@ -1,8 +1,8 @@
-"""Tests for tablevectorize text utility functions."""
+"""Tests for table_vectorize text utility functions."""
 
 import pytest
 
-from src.modules.tablevectorize.service.tablevectorize_text_utils import (
+from src.modules.table_vectorize.service.tablevectorize_text_utils import (
     clean_text,
     is_meaningless_short_text,
     split_text_by_char_limit,
@@ -11,9 +11,9 @@ from src.modules.tablevectorize.service.tablevectorize_text_utils import (
 
 def test_clean_text_normalizes_whitespace() -> None:
     """Ensure whitespace is collapsed and surrounding spaces are trimmed."""
-    content: str = "  hello\n\t  world   from\r\n tablevectorize  "
+    content: str = "  hello\n\t  world   from\r\n table_vectorize  "
 
-    assert clean_text(content) == "hello world from tablevectorize"
+    assert clean_text(content) == "hello world from table_vectorize"
 
 
 def test_is_meaningless_short_text_identifies_short_content() -> None:

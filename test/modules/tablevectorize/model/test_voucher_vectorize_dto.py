@@ -13,7 +13,7 @@ def _prepare_src_import_path() -> None:
 
 _prepare_src_import_path()
 
-from modules.tablevectorize.model.dto.voucher_vectorize_dto import VoucherVectorizeDto
+from modules.table_vectorize.model.dto.voucher_vectorize_dto import VoucherVectorizeDto
 
 
 def test_voucher_vectorize_dto_shop_name_is_string() -> None:

@@ -1,4 +1,4 @@
-"""Listener components for tablevectorize module."""
+"""Listener components for table_vectorize module."""
 
 from importlib import import_module
 from typing import Any

@@ -1,4 +1,4 @@
-"""Service helpers for tablevectorize module."""
+"""Service helpers for table_vectorize module."""
 
 from typing import TYPE_CHECKING, Any
 

@@ -5,8 +5,8 @@ from langchain_core.vectorstores import VectorStoreRetriever
 
 from config.app_config import app_config
 from infrastructure.vector.vector_service import VectorService
-from modules.tablevectorize.model.dto.blog_vectorize_dto import BlogVectorizeDto
-from modules.tablevectorize.service.tablevectorize_text_utils import (
+from modules.table_vectorize.model.dto.blog_vectorize_dto import BlogVectorizeDto
+from modules.table_vectorize.service.tablevectorize_text_utils import (
     clean_text,
     is_meaningless_short_text,
     split_text_by_char_limit,

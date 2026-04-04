@@ -6,7 +6,7 @@ from typing import Any
 
 from config.app_config import app_config
 from infrastructure.mq.abstract_message_producer import AbstractMessageProducer
-from modules.tablevectorize.model.dto.shop_vectorize_dto import ShopVectorizeDto
+from modules.table_vectorize.model.dto.shop_vectorize_dto import ShopVectorizeDto
 
 
 @dataclass

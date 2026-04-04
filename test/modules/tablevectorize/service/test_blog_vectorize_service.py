@@ -8,7 +8,7 @@ from typing import Any, TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from modules.tablevectorize.model.dto.blog_vectorize_dto import BlogVectorizeDto
+    from modules.table_vectorize.model.dto.blog_vectorize_dto import BlogVectorizeDto
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def _prepare_src_import_path() -> None:
 def _build_blog_dto(operation: str, content: str) -> "BlogVectorizeDto":
     """Build a valid blog dto used by tests."""
     _prepare_src_import_path()
-    from modules.tablevectorize.model.dto.blog_vectorize_dto import BlogVectorizeDto
+    from modules.table_vectorize.model.dto.blog_vectorize_dto import BlogVectorizeDto
 
     now: datetime = datetime.now()
     return BlogVectorizeDto(
@@ -55,7 +55,7 @@ def test_blog_vector_service_uses_blog_index_name(monkeypatch: pytest.MonkeyPatc
     """Ensure constructor initializes VectorService with blog index."""
     _prepare_src_import_path()
     from config.app_config import app_config
-    from modules.tablevectorize.service.blog_vectorize_service import BlogVectorizeService
+    from modules.table_vectorize.service.blog_vectorize_service import BlogVectorizeService
 
     captured: dict[str, str] = {}
 
@@ -72,7 +72,7 @@ def test_blog_vector_service_uses_blog_index_name(monkeypatch: pytest.MonkeyPatc
             return None
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.blog_vectorize_service.VectorService",
+        "modules.table_vectorize.service.blog_vectorize_service.VectorService",
         FakeVectorService,
     )
 
@@ -87,7 +87,7 @@ async def test_handle_message_skips_add_for_meaningless_short_content(
 ) -> None:
     """Ensure short meaningless content does not trigger add after cleanup."""
     _prepare_src_import_path()
-    from modules.tablevectorize.service.blog_vectorize_service import BlogVectorizeService
+    from modules.table_vectorize.service.blog_vectorize_service import BlogVectorizeService
 
     events: list[tuple[str, object]] = []
 
@@ -104,7 +104,7 @@ async def test_handle_message_skips_add_for_meaningless_short_content(
             events.append(("add", documents))
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.blog_vectorize_service.VectorService",
+        "modules.table_vectorize.service.blog_vectorize_service.VectorService",
         FakeVectorService,
     )
 
@@ -123,7 +123,7 @@ async def test_handle_message_chunks_long_content_into_multiple_documents(
 ) -> None:
     """Ensure long content is split into multiple chunks and vector documents."""
     _prepare_src_import_path()
-    from modules.tablevectorize.service.blog_vectorize_service import BlogVectorizeService
+    from modules.table_vectorize.service.blog_vectorize_service import BlogVectorizeService
 
     events: list[tuple[str, object]] = []
 
@@ -140,7 +140,7 @@ async def test_handle_message_chunks_long_content_into_multiple_documents(
             events.append(("add", documents))
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.blog_vectorize_service.VectorService",
+        "modules.table_vectorize.service.blog_vectorize_service.VectorService",
         FakeVectorService,
     )
 
@@ -159,7 +159,7 @@ async def test_handle_message_chunks_long_content_into_multiple_documents(
 async def test_handle_message_delete_operation_only_deletes(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure delete operation performs delete only without add."""
     _prepare_src_import_path()
-    from modules.tablevectorize.service.blog_vectorize_service import BlogVectorizeService
+    from modules.table_vectorize.service.blog_vectorize_service import BlogVectorizeService
 
     events: list[tuple[str, object]] = []
 
@@ -176,7 +176,7 @@ async def test_handle_message_delete_operation_only_deletes(monkeypatch: pytest.
             events.append(("add", documents))
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.blog_vectorize_service.VectorService",
+        "modules.table_vectorize.service.blog_vectorize_service.VectorService",
         FakeVectorService,
     )
 
@@ -193,7 +193,7 @@ async def test_handle_message_delete_operation_only_deletes(monkeypatch: pytest.
 async def test_handle_message_sets_enriched_text_and_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure document content and metadata match required enrichment format."""
     _prepare_src_import_path()
-    from modules.tablevectorize.service.blog_vectorize_service import BlogVectorizeService
+    from modules.table_vectorize.service.blog_vectorize_service import BlogVectorizeService
 
     events: list[tuple[str, object]] = []
 
@@ -210,7 +210,7 @@ async def test_handle_message_sets_enriched_text_and_metadata(monkeypatch: pytes
             events.append(("add", documents))
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.blog_vectorize_service.VectorService",
+        "modules.table_vectorize.service.blog_vectorize_service.VectorService",
         FakeVectorService,
     )
 

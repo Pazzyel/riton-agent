@@ -8,7 +8,7 @@ from typing import Any, TYPE_CHECKING
 import pytest
 
 if TYPE_CHECKING:
-    from modules.tablevectorize.model.dto.voucher_vectorize_dto import VoucherVectorizeDto
+    from modules.table_vectorize.model.dto.voucher_vectorize_dto import VoucherVectorizeDto
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def _prepare_src_import_path() -> None:
 def _build_voucher_dto(operation: str) -> "VoucherVectorizeDto":
     """Build a valid voucher dto used by tests."""
     _prepare_src_import_path()
-    from modules.tablevectorize.model.dto.voucher_vectorize_dto import VoucherVectorizeDto
+    from modules.table_vectorize.model.dto.voucher_vectorize_dto import VoucherVectorizeDto
 
     now: datetime = datetime.now()
     return VoucherVectorizeDto(
@@ -58,7 +58,7 @@ def test_voucher_vector_service_uses_voucher_index_name(monkeypatch: pytest.Monk
     """Ensure constructor initializes VectorService with voucher index."""
     _prepare_src_import_path()
     from config.app_config import app_config
-    from modules.tablevectorize.service.voucher_vectorize_service import VoucherVectorizeService
+    from modules.table_vectorize.service.voucher_vectorize_service import VoucherVectorizeService
 
     captured: dict[str, str] = {}
 
@@ -75,7 +75,7 @@ def test_voucher_vector_service_uses_voucher_index_name(monkeypatch: pytest.Monk
             return None
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.voucher_vectorize_service.VectorService",
+        "modules.table_vectorize.service.voucher_vectorize_service.VectorService",
         FakeVectorService,
     )
 
@@ -88,7 +88,7 @@ def test_voucher_vector_service_uses_voucher_index_name(monkeypatch: pytest.Monk
 async def test_handle_message_updates_with_delete_before_add(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure non-delete operation deletes old vector first then adds one document."""
     _prepare_src_import_path()
-    from modules.tablevectorize.service.voucher_vectorize_service import VoucherVectorizeService
+    from modules.table_vectorize.service.voucher_vectorize_service import VoucherVectorizeService
 
     events: list[tuple[str, object]] = []
 
@@ -105,7 +105,7 @@ async def test_handle_message_updates_with_delete_before_add(monkeypatch: pytest
             events.append(("add", documents))
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.voucher_vectorize_service.VectorService",
+        "modules.table_vectorize.service.voucher_vectorize_service.VectorService",
         FakeVectorService,
     )
 
@@ -138,7 +138,7 @@ async def test_handle_message_updates_with_delete_before_add(monkeypatch: pytest
 async def test_handle_message_delete_operation_only_deletes(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure delete operation performs delete only without add."""
     _prepare_src_import_path()
-    from modules.tablevectorize.service.voucher_vectorize_service import VoucherVectorizeService
+    from modules.table_vectorize.service.voucher_vectorize_service import VoucherVectorizeService
 
     events: list[tuple[str, object]] = []
 
@@ -155,7 +155,7 @@ async def test_handle_message_delete_operation_only_deletes(monkeypatch: pytest.
             events.append(("add", documents))
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.voucher_vectorize_service.VectorService",
+        "modules.table_vectorize.service.voucher_vectorize_service.VectorService",
         FakeVectorService,
     )
 
@@ -172,7 +172,7 @@ async def test_handle_message_delete_operation_only_deletes(monkeypatch: pytest.
 async def test_handle_message_unknown_operation_still_uses_upsert_path(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure unknown non-delete operation still executes delete then add flow."""
     _prepare_src_import_path()
-    from modules.tablevectorize.service.voucher_vectorize_service import VoucherVectorizeService
+    from modules.table_vectorize.service.voucher_vectorize_service import VoucherVectorizeService
 
     events: list[tuple[str, object]] = []
 
@@ -189,7 +189,7 @@ async def test_handle_message_unknown_operation_still_uses_upsert_path(monkeypat
             events.append(("add", documents))
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.voucher_vectorize_service.VectorService",
+        "modules.table_vectorize.service.voucher_vectorize_service.VectorService",
         FakeVectorService,
     )
 
@@ -207,7 +207,7 @@ async def test_handle_message_unknown_operation_still_uses_upsert_path(monkeypat
 async def test_handle_message_add_documents_error_propagates(monkeypatch: pytest.MonkeyPatch) -> None:
     """Ensure downstream add failure bubbles up to caller."""
     _prepare_src_import_path()
-    from modules.tablevectorize.service.voucher_vectorize_service import VoucherVectorizeService
+    from modules.table_vectorize.service.voucher_vectorize_service import VoucherVectorizeService
 
     events: list[tuple[str, object]] = []
 
@@ -225,7 +225,7 @@ async def test_handle_message_add_documents_error_propagates(monkeypatch: pytest
             raise RuntimeError("add failed")
 
     monkeypatch.setattr(
-        "modules.tablevectorize.service.voucher_vectorize_service.VectorService",
+        "modules.table_vectorize.service.voucher_vectorize_service.VectorService",
         FakeVectorService,
     )
 
