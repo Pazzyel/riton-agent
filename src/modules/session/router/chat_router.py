@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
+from sklearn.utils import deprecated
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from common.dependencies import chat_session_service
@@ -86,6 +87,7 @@ async def delete_session(
     return Result.success(data=None)
 
 
+@deprecated
 @router.post("/sessions/{session_id}/messages/stream", response_model=None)
 async def send_message_stream(
     session_id: int,

@@ -1,6 +1,7 @@
 import json
 import logging
 from typing import Any, AsyncGenerator, List, Optional
+from warnings import deprecated
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +13,7 @@ from modules.session.model.dto.chat_session_dto import (
     SessionDetailDTO,
     SessionListItemDTO,
 )
-from modules.session.model.entity.chat_message_entity import ChatMessageEntity, ChatSessionEntity
+from modules.session.model.entity.chat_message_entity import ChatMessageEntity, ChatSessionEntity, MessageType
 from modules.session.repository.chat_session_repository import ChatSessionRepository
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,14 @@ class ChatSessionService:
             raise BusinessException(ErrorCode.NOT_FOUND, "会话不存在")
         logger.info("删除会话: sessionId=%d", session_id)
 
+    async def add_session_message(self, db: AsyncSession, session_id: int, message: str, message_type: MessageType) -> int:
+        """向已有的会话添加消息"""
+        message_id: Optional[int] = await self.chat_session_repository.add_session_message(db, session_id, message, message_type)
+        if not message_id:
+            raise BusinessException(ErrorCode.NOT_FOUND, "会话不存在")
+        return message_id
+
+    @deprecated
     async def send_message_stream(self, db: AsyncSession, session_id: int, question: str) -> AsyncGenerator[str, None]:
         """完成“预落库 -> 流式输出 -> 回写消息”的聊天流程。"""
         # Step 1: 校验输入并创建消息记录

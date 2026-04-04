@@ -1,11 +1,13 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
+from warnings import deprecated
 
 from sqlalchemy import delete, insert, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from common.exceptions import BusinessException
 from modules.session.model.dto.chat_session_dto import SessionListItemDTO
-from modules.session.model.entity.chat_message_entity import ChatMessageEntity, ChatSessionEntity
+from modules.session.model.entity.chat_message_entity import ChatMessageEntity, ChatSessionEntity, MessageType
 from modules.session.model.orm.chat_session_orm import ChatMessageORM, ChatSessionORM
 
 
@@ -102,6 +104,28 @@ class ChatSessionRepository:
         orm_list: List[ChatMessageORM] = list(result.scalars().all())
         return [self._to_message_entity(item) for item in orm_list]
 
+    async def add_session_message(self, db: AsyncSession, session_id: int, message: str, message_type: MessageType) -> Optional[int]:
+        """直接向已有的会话写入一条消息，返回最新消息的id"""
+        session_orm: ChatSessionORM = (await db.execute(select(ChatSessionORM).where(ChatSessionORM.id == session_id))).scalar_one_or_none()
+        if session_orm is None:
+            return None
+
+        next_order: int = int(session_orm.message_count)
+        now: datetime = datetime.now()
+        message_data: Dict[str, Any] = {
+            "session_id": session_id,
+            "type": message_type.value,
+            "content": message,
+            "message_order": next_order,
+            "completed": True,
+            "created_at": now,
+            "updated_at": now,
+        }
+
+        await db.execute(insert(ChatMessageORM).values(**message_data))
+        return next_order
+
+    @deprecated
     async def prepare_stream_messages(self, db: AsyncSession, session_id: int, question: str) -> Optional[int]:
         """写入用户消息并创建 AI 占位消息，返回 AI 消息 ID。"""
         # Step 1: 校验会话存在
