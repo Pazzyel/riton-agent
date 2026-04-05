@@ -10,6 +10,7 @@ from modules.knowledgebase.router import knowledgebase_router, rag_chat_router
 from config.app_config import app_config
 from common.dependencies import (
     blog_vectorize_message_consumer,
+    shop_search_agent_service,
     shop_vectorize_message_consumer,
     vectorize_message_consumer,
     voucher_vectorize_message_consumer,
@@ -25,6 +26,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     async with AIOMySQLSaver.from_conn_string(app_config.DB_URI) as checkpointer:
         await checkpointer.setup()
+        shop_search_agent_service.set_checkpointer(checkpointer)
         await vectorize_message_consumer.start()
         await shop_vectorize_message_consumer.start()
         await voucher_vectorize_message_consumer.start()

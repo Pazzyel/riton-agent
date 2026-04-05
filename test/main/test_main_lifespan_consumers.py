@@ -100,6 +100,7 @@ def test_lifespan_starts_and_shuts_down_all_consumers(monkeypatch) -> None:
 
     fake_dependencies_module = types.ModuleType("common.dependencies")
     fake_dependencies_module.knowledgebase_query_service = object()
+    fake_dependencies_module.shop_search_agent_service = types.SimpleNamespace(set_checkpointer=lambda _checkpointer: None)
     fake_dependencies_module.vectorize_message_consumer = knowledgebase_consumer
     fake_dependencies_module.shop_vectorize_message_consumer = shop_consumer
     fake_dependencies_module.voucher_vectorize_message_consumer = voucher_consumer

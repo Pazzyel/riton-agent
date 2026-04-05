@@ -124,4 +124,5 @@ shop_search_rag_service = ShopSearchRagService(blog_vectorize_service)
 shop_search_agent_service = ShopSearchAgentService(
     shop_search_tool_service,
     shop_search_rag_service,
+    chat_session_service,
 )

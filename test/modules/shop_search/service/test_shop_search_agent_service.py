@@ -4,6 +4,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from langchain_core.messages import AIMessage
+
 
 def _ensure_src_path() -> None:
     """确保测试可导入 src 下一级包。"""
@@ -52,14 +54,6 @@ class FakePrompt:
         return [("user", f"generate::{kwargs.get('ranked_payload', '')}")]
 
 
-class FakeModelResponse:
-    """模型响应封装。"""
-
-    def __init__(self, content: str) -> None:
-        """初始化响应文本。"""
-        self.content: str = content
-
-
 class FakeModel:
     """测试用模型。"""
 
@@ -77,7 +71,7 @@ class FakeModel:
         _ = tools
         return self
 
-    async def ainvoke(self, messages: list[tuple[str, str]]) -> FakeModelResponse:
+    async def ainvoke(self, messages: list[tuple[str, str]]) -> AIMessage:
         """根据提示类型返回固定内容。"""
         last_message: Any = messages[-1]
         text: str
@@ -89,19 +83,19 @@ class FakeModel:
         if text.startswith("parse::"):
             query_text: str = text.split("::", 1)[1]
             if "静安" in query_text:
-                return FakeModelResponse(
-                    '{"keyword":"环境好","category":"火锅","price_range":"200以内","explicit_location":"静安区"}'
+                return AIMessage(
+                    content='{"keyword":"环境好","category":"火锅","price_range":"200以内","explicit_location":"静安区"}'
                 )
-            return FakeModelResponse(
-                '{"keyword":"安静","category":"咖啡","price_range":"不限","explicit_location":null}'
+            return AIMessage(
+                content='{"keyword":"安静","category":"咖啡","price_range":"不限","explicit_location":null}'
             )
         if text.startswith("generate::"):
-            return FakeModelResponse(
-                "[[shop_id=1001]]\n推荐理由：距离近、评价高、优惠合适、评论提到生日氛围好。"
+            return AIMessage(
+                content="[[shop_id=1001]]\n推荐理由：距离近、评价高、优惠合适、评论提到生日氛围好。"
             )
         if "静安" in text:
-            return FakeModelResponse(
-                json.dumps(
+            return AIMessage(
+                content=json.dumps(
                     {
                         "resolved_coordinates": [121.41, 31.22],
                         "search_text": "火锅 环境好",
@@ -119,8 +113,8 @@ class FakeModel:
                     ensure_ascii=False,
                 )
             )
-        return FakeModelResponse(
-            "[[shop_id=1001]]\n推荐理由：距离近、评价高、优惠合适、评论提到生日氛围好。"
+        return AIMessage(
+            content="[[shop_id=1001]]\n推荐理由：距离近、评价高、优惠合适、评论提到生日氛围好。"
         )
 
 
@@ -211,9 +205,10 @@ def _build_service() -> ShopSearchAgentService:
 def test_parse_routes_to_geo_when_explicit_location_present() -> None:
     """解析完成后应进入工具 ReAct 节点。"""
     service: ShopSearchAgentService = _build_service()
-    state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1)
+    state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1, 7, "7")
     command: Any = asyncio.run(service.parse_intent_node(state))
     assert service._model.structured_schema is not None
+    assert command.update["messages"][-1].type == "ai"
     assert command.goto == "react_tool_node"
 
 
@@ -227,7 +222,7 @@ def test_stream_output_contains_done_marker() -> None:
 def test_graph_with_explicit_location_runs_geo_branch() -> None:
     """完整图执行时显式位置应触发坐标替换。"""
     service: ShopSearchAgentService = _build_service()
-    initial_state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1)
+    initial_state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1, 7, "7")
     final_state: dict[str, Any] = asyncio.run(service.graph.ainvoke(initial_state))
     assert final_state["resolved_coordinates"] != initial_state["coordinates"]
     assert final_state["final_markdown"].startswith("[[shop_id=")
@@ -236,7 +231,7 @@ def test_graph_with_explicit_location_runs_geo_branch() -> None:
 def test_react_tool_node_uses_structured_output_schema() -> None:
     """ReAct 最终结果应通过结构化输出约束字段名称。"""
     service: ShopSearchAgentService = _build_service()
-    state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1)
+    state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1, 7, "7")
     parsed_command: Any = asyncio.run(service.parse_intent_node(state))
     next_state: dict[str, Any] = {**state, **parsed_command.update}
 
@@ -245,6 +240,33 @@ def test_react_tool_node_uses_structured_output_schema() -> None:
     assert service._model.structured_schema is not None
     assert command.update["resolved_coordinates"] == (121.41, 31.22)
     assert command.update["search_text"] == "火锅 环境好"
+    assert len(command.update["messages"]) >= 1
+    assert command.update["messages"][-1].type == "ai"
+
+
+def test_messages_reducer_appends_instead_of_overwriting() -> None:
+    """messages 应使用 reducer 聚合，而不是被后续节点覆盖。"""
+    service: ShopSearchAgentService = _build_service()
+    initial_state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1, 7, "7")
+    final_state: dict[str, Any] = asyncio.run(service.graph.ainvoke(initial_state))
+
+    assert len(final_state["messages"]) >= 4
+
+
+def test_retrieve_comment_node_appends_rag_ai_and_tool_messages() -> None:
+    """RAG 检索阶段应补 AIMessage 与 ToolMessage。"""
+    service: ShopSearchAgentService = _build_service()
+    state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1, 7, "7")
+    state["keyword"] = "环境好"
+    state["shop_candidates"] = [
+        {"shop_id": 1001, "distance_km": 1.2, "rating": 4.8, "name": "静安火锅馆"},
+        {"shop_id": 1002, "distance_km": 3.1, "rating": 4.6, "name": "生日火锅屋"},
+    ]
+
+    command: Any = asyncio.run(service.retrieve_comment_node(state))
+
+    assert command.update["messages"][-2].type == "ai"
+    assert command.update["messages"][-1].type == "tool"
 
 
 async def _collect_chunks(generator: Any) -> list[str]:

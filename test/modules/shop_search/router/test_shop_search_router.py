@@ -23,17 +23,44 @@ def test_shop_search_stream_route_exists() -> None:
     class FakeShopSearchAgentService:
         """测试用商铺推荐服务。"""
 
-        async def search_stream(self, query: str, coordinates: tuple[float, float], user_id: int):
+        def __init__(self) -> None:
+            """记录透传参数。"""
+            self.calls: list[dict[str, object]] = []
+
+        async def search_stream(
+            self,
+            db: object,
+            query: str,
+            coordinates: tuple[float, float],
+            user_id: int,
+            session_id: int | None,
+        ):
             """返回最小 SSE 响应。"""
-            _ = query
-            _ = coordinates
-            _ = user_id
+            self.calls.append(
+                {
+                    "db": db,
+                    "query": query,
+                    "coordinates": coordinates,
+                    "user_id": user_id,
+                    "session_id": session_id,
+                }
+            )
             yield "data: {\"response\":\"ok\"}\\n\\n"
             yield "data: [DONE]\\n\\n"
 
+    fake_shop_search_service: FakeShopSearchAgentService = FakeShopSearchAgentService()
     fake_dependencies_module = types.ModuleType("common.dependencies")
-    fake_dependencies_module.shop_search_agent_service = FakeShopSearchAgentService()
+    fake_dependencies_module.shop_search_agent_service = fake_shop_search_service
     sys.modules["common.dependencies"] = fake_dependencies_module
+
+    fake_db_connection_module = types.ModuleType("infrastructure.database.connection")
+
+    async def fake_get_async_session():
+        """返回固定 db 对象。"""
+        yield object()
+
+    fake_db_connection_module.get_async_session = fake_get_async_session
+    sys.modules["infrastructure.database.connection"] = fake_db_connection_module
 
     from modules.shop_search.router import shop_search_router
 
@@ -42,6 +69,7 @@ def test_shop_search_stream_route_exists() -> None:
     client: TestClient = TestClient(app)
     response = client.post(
         "/ai/search/stream",
-        json={"query": "火锅", "x": 121.47, "y": 31.23, "user_id": 1},
+        json={"query": "火锅", "x": 121.47, "y": 31.23, "user_id": 1, "session_id": 88},
     )
     assert response.status_code in [200, 422]
+    assert fake_shop_search_service.calls[-1]["session_id"] == 88

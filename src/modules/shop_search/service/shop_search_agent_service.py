@@ -2,12 +2,15 @@ import inspect
 import json
 from typing import Any, AsyncGenerator, Callable, Literal, Protocol
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
 from langgraph.graph import START, StateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from modules.session.model.dto.chat_session_dto import CreateSessionRequest
+from modules.session.model.entity.chat_message_entity import MessageType
 from modules.shop_search.model.entity.shop_search_state import ShopSearchState
 from modules.shop_search.service.shop_search_rag_service import ShopSearchRagService
 from modules.shop_search.service.shop_search_tool_service import ShopSearchToolService
@@ -52,12 +55,15 @@ class ShopSearchAgentService:
         self,
         tool_service: ShopSearchToolService,
         rag_service: ShopSearchRagService,
+        chat_session_service: Any = None,
         model: ModelProtocol | None = None,
         prompt_loader: Callable[[str], Any] | None = None,
     ) -> None:
         """初始化商铺推荐编排服务。"""
         self.tool_service: ShopSearchToolService = tool_service
         self.rag_service: ShopSearchRagService = rag_service
+        self.chat_session_service: Any = chat_session_service
+        self._checkpointer: Any | None = None
         self._model: ModelProtocol | None = model
         self._prompt_loader: Callable[[str], Any] | None = prompt_loader
         self.graph = self._build_graph()
@@ -72,19 +78,29 @@ class ShopSearchAgentService:
         builder.add_node("generate_node", self.generate_node)
         builder.add_node("fallback_node", self.fallback_node)
         builder.add_edge(START, "parse_intent_node")
-        return builder.compile()
+        return builder.compile(checkpointer=self._checkpointer)
+
+    def set_checkpointer(self, checkpointer: Any) -> None:
+        """设置 checkpointer 并重建 graph。"""
+        self._checkpointer = checkpointer
+        self.graph = self._build_graph()
 
     def build_initial_state(
         self,
         query: str,
         coordinates: tuple[float, float],
         user_id: int,
+        session_id: int,
+        thread_id: str,
     ) -> ShopSearchState:
         """构建图初始状态。"""
         initial_state: ShopSearchState = {
             "origin_query": query,
             "coordinates": coordinates,
             "user_id": user_id,
+            "session_id": session_id,
+            "thread_id": thread_id,
+            "messages": [HumanMessage(content=query)],
             "keyword": "",
             "category": "",
             "price_range": "不限",
@@ -103,16 +119,61 @@ class ShopSearchAgentService:
 
     async def search_stream(
         self,
+        db: AsyncSession,
         query: str,
         coordinates: tuple[float, float],
         user_id: int,
+        session_id: int | None,
     ) -> AsyncGenerator[str, None]:
         """执行推荐图并输出 SSE 文本流。"""
-        initial_state: ShopSearchState = self.build_initial_state(query, coordinates, user_id)
-        final_state: ShopSearchState = await self.graph.ainvoke(initial_state)
-        final_text: str = final_state["final_markdown"]
+        normalized_query: str = query.strip()
+        resolved_session_id: int = await self._resolve_session_id(db, session_id)
+        thread_id: str = str(resolved_session_id)
+
+        await self.chat_session_service.add_session_message(
+            db,
+            resolved_session_id,
+            normalized_query,
+            MessageType.USER,
+        )
+
+        initial_state: ShopSearchState = self.build_initial_state(
+            normalized_query,
+            coordinates,
+            user_id,
+            resolved_session_id,
+            thread_id,
+        )
+        final_text: str
+        try:
+            final_state: ShopSearchState = await self.graph.ainvoke(
+                initial_state,
+                config={"configurable": {"thread_id": thread_id}},
+            )
+            final_text = final_state["final_markdown"]
+        except Exception as error:
+            final_text = f"抱歉，商铺推荐生成失败：{str(error)}"
+
+        await self.chat_session_service.add_session_message(
+            db,
+            resolved_session_id,
+            final_text,
+            MessageType.ASSISTANT,
+        )
+
         async for chunk in self._emit_sse(final_text):
             yield chunk
+
+    async def _resolve_session_id(self, db: AsyncSession, session_id: int | None) -> int:
+        """解析或创建会话 ID。"""
+        if session_id is not None:
+            return session_id
+
+        created_session: Any = await self.chat_session_service.create_session(
+            db,
+            CreateSessionRequest(title="商铺推荐"),
+        )
+        return int(created_session.id)
 
     async def parse_intent_node(
         self,
@@ -137,6 +198,13 @@ class ShopSearchAgentService:
             if price_range == "":
                 price_range = "不限"
 
+            summary_message: AIMessage = AIMessage(
+                content=(
+                    f"已解析需求：category={category}, keyword={keyword}, "
+                    f"price_range={price_range}, explicit_location={explicit_location or '无'}"
+                )
+            )
+
             return Command(
                 update={
                     "keyword": keyword,
@@ -144,6 +212,7 @@ class ShopSearchAgentService:
                     "price_range": price_range,
                     "explicit_location": explicit_location,
                     "resolved_coordinates": state["coordinates"],
+                    "messages": [summary_message],
                     "error_message": None,
                 },
                 goto="react_tool_node",
@@ -165,8 +234,9 @@ class ShopSearchAgentService:
             system_prompt: str = self._build_tool_react_prompt(state)
             messages: list[Any] = [
                 SystemMessage(content=system_prompt),
-                HumanMessage(content=state["origin_query"]),
+                *state["messages"],
             ]
+            appended_messages: list[Any] = []
 
             # ReAct 最后的结构化结果。
             final_payload: ShopSearchReactFinalPayload | None = None
@@ -177,6 +247,7 @@ class ShopSearchAgentService:
                 # 获取最新的消息。分析是ToolCall还是最终结果
                 ai_message: Any = await bound_model.ainvoke(messages)
                 messages.append(ai_message)
+                appended_messages.append(ai_message)
 
                 tool_calls: list[Any] = list(getattr(ai_message, "tool_calls", []) or [])
                 if len(tool_calls) == 0:
@@ -187,6 +258,7 @@ class ShopSearchAgentService:
                 tool_result: dict[str, Any] = await tool_node.ainvoke({"messages": messages})
                 tool_messages: list[Any] = list(tool_result.get("messages", []))
                 messages.extend(tool_messages)
+                appended_messages.extend(tool_messages)
                 step_index += 1
 
             if final_payload is None:
@@ -211,6 +283,7 @@ class ShopSearchAgentService:
                     "shop_candidates": shop_candidates,
                     "coupon_map": coupon_map,
                     "search_text": search_text,
+                    "messages": appended_messages,
                     "error_message": None,
                 },
                 goto="retrieve_comment_node",
@@ -225,6 +298,7 @@ class ShopSearchAgentService:
         """批量检索候选商铺评论证据。"""
         comment_map: dict[int, list[str]] = {}
         keyword_text: str = state["keyword"] if state["keyword"].strip() != "" else state["origin_query"]
+        shop_ids: list[str] = []
 
         # 关键步骤：评论缺失不阻断主流程，统一降级为空列表。
         shop_item: dict[str, Any]
@@ -232,13 +306,28 @@ class ShopSearchAgentService:
             shop_id: int = int(shop_item.get("shop_id", 0))
             if shop_id <= 0:
                 continue
+            shop_ids.append(str(shop_id))
             try:
                 comments: list[str] = await self.rag_service.retrieve_comments(shop_id, keyword_text)
                 comment_map[shop_id] = comments
             except Exception:
                 comment_map[shop_id] = []
 
-        return Command(update={"comment_map": comment_map}, goto="rank_node")
+        rag_query_message: AIMessage = AIMessage(
+            content=f"调用RAG向量库搜索shops:({','.join(shop_ids)})"
+        )
+        rag_result_message: ToolMessage = ToolMessage(
+            content=json.dumps(comment_map, ensure_ascii=False),
+            tool_name="shop_comment_rag",
+            tool_call_id="shop_comment_rag",
+        )
+        return Command(
+            update={
+                "comment_map": comment_map,
+                "messages": [rag_query_message, rag_result_message],
+            },
+            goto="rank_node",
+        )
 
     async def rank_node(
         self,

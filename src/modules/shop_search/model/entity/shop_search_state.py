@@ -1,4 +1,7 @@
-from typing import Any, TypedDict
+from typing import Annotated, Any, TypedDict
+
+from langchain_core.messages import AnyMessage
+from langgraph.graph.message import add_messages
 
 
 class ShopSearchState(TypedDict):
@@ -7,6 +10,9 @@ class ShopSearchState(TypedDict):
     origin_query: str
     coordinates: tuple[float, float]
     user_id: int
+    session_id: int
+    thread_id: str
+    messages: Annotated[list[AnyMessage], add_messages]
     keyword: str
     category: str
     price_range: str

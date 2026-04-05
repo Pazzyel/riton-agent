@@ -10,3 +10,4 @@ class ShopSearchStreamRequest(BaseCamelSchema):
     x: float
     y: float
     user_id: int
+    session_id: int | None = None
