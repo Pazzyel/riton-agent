@@ -34,7 +34,12 @@ class CompactNodeFactory:
             if not self.token_estimator.should_compact(token_count):
                 return Command(update={}, goto=goto)
 
-            compacted_messages: list[AnyMessage] = await self.compact_service.compact_messages(messages, token_count)
+            compacted_messages_result: Any = self.compact_service.compact_messages(messages, token_count)
+            compacted_messages: list[AnyMessage]
+            if inspect.isawaitable(compacted_messages_result):
+                compacted_messages = await compacted_messages_result
+            else:
+                compacted_messages = compacted_messages_result
 
             # 没有达到阈值，不总结
             if compacted_messages == messages:
