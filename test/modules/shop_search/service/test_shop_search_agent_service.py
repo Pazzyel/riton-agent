@@ -54,6 +54,20 @@ class FakePrompt:
         return [("user", f"generate::{kwargs.get('ranked_payload', '')}")]
 
 
+class _RecordingPrompt:
+    """用于记录 format_messages 入参的测试 prompt。"""
+
+    def __init__(self, template_name: str) -> None:
+        self.template_name: str = template_name
+        self.last_kwargs: dict[str, Any] = {}
+
+    def format_messages(self, **kwargs: Any) -> list[tuple[str, str]]:
+        self.last_kwargs = kwargs
+        if self.template_name == "shop_search_parse":
+            return [("user", f"parse::{kwargs.get('query', '')}")]
+        return [("user", f"generate::{kwargs.get('ranked_payload', '')}")]
+
+
 class FakeModel:
     """测试用模型。"""
 
@@ -209,7 +223,7 @@ def test_parse_routes_to_geo_when_explicit_location_present() -> None:
     command: Any = asyncio.run(service.parse_intent_node(state))
     assert service._model.structured_schema is not None
     assert command.update["messages"][-1].type == "ai"
-    assert command.goto == "react_tool_node"
+    assert command.goto == "compact_before_react_node"
 
 
 def test_stream_output_contains_done_marker() -> None:
@@ -253,6 +267,75 @@ def test_messages_reducer_appends_instead_of_overwriting() -> None:
     assert len(final_state["messages"]) >= 4
 
 
+def test_service_builds_compact_services() -> None:
+    """推荐 agent service 应初始化压缩相关服务。"""
+    service: ShopSearchAgentService = _build_service()
+
+    assert service.compact_service is not None
+    assert service.token_estimator is not None
+
+
+def test_compact_before_parse_node_uses_factory_output() -> None:
+    """parse 前压缩节点应通过工厂生成并正常工作。"""
+    service: ShopSearchAgentService = _build_service()
+    assert service.compact_node_factory is not None
+
+
+def test_compact_before_parse_node_can_compact_messages_when_threshold_reached() -> None:
+    """达到阈值时工厂生成的压缩节点应返回压缩更新。"""
+    service: ShopSearchAgentService = _build_service()
+    service.token_estimator = _ForcedCompactEstimator()
+    service.compact_node_factory = service.compact_node_factory.__class__(service.token_estimator, service.compact_service)
+    state: dict[str, Any] = service.build_initial_state("火锅", (121.47, 31.23), 1, 7, "7")
+    state["messages"] = _build_large_message_history()
+
+    compact_node = service.compact_node_factory.build_node("parse_intent_node")
+    command: Any = compact_node(state)
+
+    assert any("会话摘要" in str(message.content) for message in command.update["messages"])
+
+
+def test_parse_intent_uses_messages_from_state() -> None:
+    """parse 节点应直接使用 state 中的 messages 渲染 prompt。"""
+    service: ShopSearchAgentService = _build_service()
+    recording_prompt: _RecordingPrompt = _RecordingPrompt("shop_search_parse")
+    service._prompt_loader = lambda _: recording_prompt
+    state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1, 7, "7")
+    state["messages"] = [AIMessage(content="compacted-history")]
+
+    _ = asyncio.run(service.parse_intent_node(state))
+
+    assert recording_prompt.last_kwargs["messages"][0].content == "compacted-history"
+
+
+def test_parse_intent_passes_compacted_messages_to_prompt_placeholder() -> None:
+    """parse 节点应将压缩后的 messages 通过 prompt 的 messages 变量传入。"""
+    service: ShopSearchAgentService = _build_service()
+    recording_prompt: _RecordingPrompt = _RecordingPrompt("shop_search_parse")
+    service._prompt_loader = lambda _: recording_prompt
+    state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1, 7, "7")
+    state["messages"] = [AIMessage(content="compacted-history")]
+
+    asyncio.run(service.parse_intent_node(state))
+
+    assert recording_prompt.last_kwargs["messages"][0].content == "compacted-history"
+
+
+def test_generate_node_uses_compacted_messages() -> None:
+    """generate 节点应使用 state 中已压缩的 messages。"""
+    service: ShopSearchAgentService = _build_service()
+    recording_prompt: _RecordingPrompt = _RecordingPrompt("shop_search_generate")
+    service._prompt_loader = lambda _: recording_prompt
+    state: dict[str, Any] = service.build_initial_state("静安区附近火锅", (121.47, 31.23), 1, 7, "7")
+    state["messages"] = [AIMessage(content="compacted-history")]
+    state["ranked_shops"] = [{"shop_id": 1001, "name": "静安火锅馆", "score": 0.95}]
+
+    command: Any = asyncio.run(service.generate_node(state))
+
+    assert command.goto == "__end__"
+    assert recording_prompt.last_kwargs["messages"][0].content == "compacted-history"
+
+
 def test_retrieve_comment_node_appends_rag_ai_and_tool_messages() -> None:
     """RAG 检索阶段应补 AIMessage 与 ToolMessage。"""
     service: ShopSearchAgentService = _build_service()
@@ -280,3 +363,34 @@ async def _collect_chunks(generator: Any) -> list[str]:
 async def _fake_get_empty_tools() -> list[Any]:
     """返回空工具列表，避免 ToolNode 依赖真实工具对象。"""
     return []
+
+
+class _ForcedCompactEstimator:
+    """强制触发压缩的测试估算器。"""
+
+    def estimate_messages_tokens(self, messages: list[Any]) -> int:
+        """返回固定高 token 数。"""
+        _ = messages
+        return 200000
+
+    def should_compact(self, token_count: int) -> bool:
+        """始终触发压缩。"""
+        _ = token_count
+        return True
+
+
+def _build_large_message_history() -> list[Any]:
+    """构造较长的历史消息列表。"""
+    history: list[Any] = []
+    index: int
+    for index in range(8):
+        history.append(_human_message(f"用户历史消息{index}" * 30))
+        history.append(AIMessage(content=f"助手历史消息{index}" * 30))
+    return history
+
+
+def _human_message(content: str) -> Any:
+    """构造用户消息。"""
+    from langchain_core.messages import HumanMessage
+
+    return HumanMessage(content=content)

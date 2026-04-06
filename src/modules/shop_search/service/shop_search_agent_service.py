@@ -3,12 +3,16 @@ import json
 from typing import Any, AsyncGenerator, Callable, Literal, Protocol
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
-from langgraph.graph import START, StateGraph
+from langgraph.graph import START, END, StateGraph
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode
 from langgraph.types import Command
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from infrastructure.agent.compact.compact_node_factory import CompactNodeFactory
+from infrastructure.agent.compact.message_compact_service import MessageCompactService
+from infrastructure.agent.compact.token_estimator import MessageTokenEstimator
 from modules.session.model.dto.chat_session_dto import CreateSessionRequest
 from modules.session.model.entity.chat_message_entity import MessageType
 from modules.shop_search.model.entity.shop_search_state import ShopSearchState
@@ -58,6 +62,8 @@ class ShopSearchAgentService:
         chat_session_service: Any = None,
         model: ModelProtocol | None = None,
         prompt_loader: Callable[[str], Any] | None = None,
+        compact_service: MessageCompactService | None = None,
+        token_estimator: MessageTokenEstimator | None = None,
     ) -> None:
         """初始化商铺推荐编排服务。"""
         self.tool_service: ShopSearchToolService = tool_service
@@ -66,18 +72,27 @@ class ShopSearchAgentService:
         self._checkpointer: Any | None = None
         self._model: ModelProtocol | None = model
         self._prompt_loader: Callable[[str], Any] | None = prompt_loader
+        self.compact_service: MessageCompactService = compact_service or MessageCompactService()
+        self.token_estimator: MessageTokenEstimator = token_estimator or MessageTokenEstimator()
+        self.compact_node_factory: CompactNodeFactory = CompactNodeFactory(
+            self.token_estimator,
+            self.compact_service,
+        )
         self.graph = self._build_graph()
 
-    def _build_graph(self) -> Any:
+    def _build_graph(self) -> CompiledStateGraph:
         """构建 LangGraph。"""
         builder: StateGraph[ShopSearchState] = StateGraph(ShopSearchState)
+        builder.add_node("compact_before_parse_node", self.compact_node_factory.build_node("parse_intent_node"))
         builder.add_node("parse_intent_node", self.parse_intent_node)
+        builder.add_node("compact_before_react_node", self.compact_node_factory.build_node("react_tool_node"))
         builder.add_node("react_tool_node", self.react_tool_node)
         builder.add_node("retrieve_comment_node", self.retrieve_comment_node)
         builder.add_node("rank_node", self.rank_node)
+        builder.add_node("compact_before_generate_node", self.compact_node_factory.build_node("generate_node"))
         builder.add_node("generate_node", self.generate_node)
         builder.add_node("fallback_node", self.fallback_node)
-        builder.add_edge(START, "parse_intent_node")
+        builder.add_edge(START, "compact_before_parse_node")
         return builder.compile(checkpointer=self._checkpointer)
 
     def set_checkpointer(self, checkpointer: Any) -> None:
@@ -178,14 +193,18 @@ class ShopSearchAgentService:
     async def parse_intent_node(
         self,
         state: ShopSearchState,
-    ) -> Command[Literal["react_tool_node", "fallback_node"]]:
+    ) -> Command[Literal["compact_before_react_node", "fallback_node"]]:
         """解析用户意图并决定路由。"""
         try:
             model: ModelProtocol = self._get_model()
             prompt: PromptProtocol = await self._load_prompt("shop_search_parse")
-            messages: list[Any] = prompt.format_messages(query=state["origin_query"])
             structured_model: Any = model.with_structured_output(ShopSearchParsePayload)
-            parsed: ShopSearchParsePayload = await structured_model.ainvoke(messages)
+            parsed: ShopSearchParsePayload = await structured_model.ainvoke(
+                prompt.format_messages(
+                    messages=state["messages"],
+                    query=state["origin_query"],
+                )
+            )
 
             keyword: str = parsed.keyword.strip()
             category: str = parsed.category.strip()
@@ -215,7 +234,7 @@ class ShopSearchAgentService:
                     "messages": [summary_message],
                     "error_message": None,
                 },
-                goto="react_tool_node",
+                goto="compact_before_react_node",
             )
         except Exception as error:
             return Command(update={"error_message": str(error)}, goto="fallback_node")
@@ -332,7 +351,7 @@ class ShopSearchAgentService:
     async def rank_node(
         self,
         state: ShopSearchState,
-    ) -> Command[Literal["generate_node", "fallback_node"]]:
+    ) -> Command[Literal["compact_before_generate_node", "fallback_node"]]:
         """综合距离评分券匹配评论匹配进行排序。"""
         try:
             ranked: list[dict[str, Any]] = []
@@ -370,39 +389,53 @@ class ShopSearchAgentService:
                 ranked.append(merged_item)
 
             ranked.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
-            return Command(update={"score_map": score_map, "ranked_shops": ranked}, goto="generate_node")
+            return Command(update={"score_map": score_map, "ranked_shops": ranked}, goto="compact_before_generate_node")
         except Exception as error:
             return Command(update={"error_message": str(error)}, goto="fallback_node")
 
     async def generate_node(
         self,
         state: ShopSearchState,
-    ) -> Command[Literal["__end__"]]:
+    ) -> Command:
         """生成最终推荐文案。"""
         ranked_payload: str = json.dumps(state["ranked_shops"][:6], ensure_ascii=False)
         try:
             model: ModelProtocol = self._get_model()
             prompt: PromptProtocol = await self._load_prompt("shop_search_generate")
-            messages: list[Any] = prompt.format_messages(
-                query=state["origin_query"],
-                ranked_payload=ranked_payload,
+            response: Any = await model.ainvoke(
+                prompt.format_messages(
+                    messages=state["messages"],
+                    query=state["origin_query"],
+                    ranked_payload=ranked_payload,
+                )
             )
-            response: Any = await model.ainvoke(messages)
             content_text: str = str(response.content).strip()
             if content_text == "":
                 content_text = self._build_fallback_markdown(state)
-            return Command(update={"final_markdown": content_text}, goto="__end__")
+            return Command(
+                update={
+                    "final_markdown": content_text,
+                    "messages": [AIMessage(content=content_text)],
+                },
+                goto=END,
+            )
         except Exception:
             fallback_text: str = self._build_fallback_markdown(state)
-            return Command(update={"final_markdown": fallback_text}, goto="__end__")
+            return Command(
+                update={
+                    "final_markdown": fallback_text,
+                    "messages": [AIMessage(content=fallback_text)],
+                },
+                goto=END,
+            )
 
     async def fallback_node(
         self,
         state: ShopSearchState,
-    ) -> Command[Literal["__end__"]]:
+    ) -> Command:
         """失败兜底节点。"""
         fallback_text: str = self._build_fallback_markdown(state)
-        return Command(update={"final_markdown": fallback_text}, goto="__end__")
+        return Command(update={"final_markdown": fallback_text}, goto=END)
 
     async def _emit_sse(self, content: str) -> AsyncGenerator[str, None]:
         """将完整文本切片并输出 SSE。"""
@@ -434,7 +467,6 @@ class ShopSearchAgentService:
         if "不限" in price_range:
             return discount_score
         return max(0.0, min(1.0, discount_score + 0.1))
-
 
     def _build_tool_react_prompt(self, state: ShopSearchState) -> str:
         """构建工具 ReAct 执行提示词。"""
