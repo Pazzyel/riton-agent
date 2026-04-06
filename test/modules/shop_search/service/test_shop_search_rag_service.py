@@ -3,6 +3,8 @@ import sys
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from langchain_core.documents import Document
+
 
 def _ensure_src_path() -> None:
     """确保测试可以导入 src 下模块。"""
@@ -22,27 +24,30 @@ from modules.shop_search.service.shop_search_rag_service import ShopSearchRagSer
 class DummyBlogVectorService:
     """用于测试的评论向量服务。"""
 
-    async def retrieve_by_shop(
+    def get_retriever(
         self,
-        shop_id: int,
-        keyword: str,
-        top_k: int,
-    ) -> list[dict[str, str]]:
-        """返回包含新旧评论的混合数据。"""
-        _ = shop_id
+        search_type: str = "similarity_score_threshold",
+        search_kwargs: dict | None = None,
+    ) -> object:
+        """返回带固定文档的 retriever。"""
+        assert search_type == "similarity_score_threshold"
+        assert search_kwargs is not None
+        assert search_kwargs["k"] == 8
+        assert search_kwargs["filter"] == [{"term": {"metadata.shop_id.keyword": "1001"}}]
+        return _DummyRetriever()
+
+
+class _DummyRetriever:
+    """用于测试的 retriever。"""
+
+    async def ainvoke(self, keyword: str) -> list[Document]:
+        """返回包含新旧评论的混合文档。"""
         _ = keyword
-        _ = top_k
         now: datetime = datetime.now()
         old_time: datetime = now - timedelta(days=500)
         return [
-            {
-                "content": "生日布置很用心",
-                "create_time": now.isoformat(),
-            },
-            {
-                "content": "很久以前的评论",
-                "create_time": old_time.isoformat(),
-            },
+            Document(page_content="生日布置很用心", metadata={"create_time": now.isoformat()}),
+            Document(page_content="很久以前的评论", metadata={"create_time": old_time.isoformat()}),
         ]
 
 

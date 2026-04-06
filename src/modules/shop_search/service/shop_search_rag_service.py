@@ -1,25 +1,17 @@
 from datetime import datetime, timedelta
-from typing import Any, Protocol
 
+from langchain_core.documents import Document
+from langchain_core.vectorstores import VectorStoreRetriever
 
-class BlogRetrieverProtocol(Protocol):
-    """评论向量检索协议。"""
-
-    async def retrieve_by_shop(
-        self,
-        shop_id: int,
-        keyword: str,
-        top_k: int,
-    ) -> list[dict[str, Any]]:
-        """按店铺和关键词检索评论。"""
+from modules.table_vectorize.service.blog_vectorize_service import BlogVectorizeService
 
 
 class ShopSearchRagService:
     """商铺推荐评论检索服务。"""
 
-    def __init__(self, blog_retriever: BlogRetrieverProtocol) -> None:
+    def __init__(self, blog_vectorize_service: BlogVectorizeService) -> None:
         """初始化评论检索服务。"""
-        self.blog_retriever: BlogRetrieverProtocol = blog_retriever
+        self.blog_vectorize_service: BlogVectorizeService = blog_vectorize_service
 
     async def retrieve_comments(
         self,
@@ -28,20 +20,23 @@ class ShopSearchRagService:
         top_k: int = 8,
     ) -> list[str]:
         """检索并过滤一年内评论文本。"""
-        rows: list[dict[str, Any]] = await self.blog_retriever.retrieve_by_shop(
-            shop_id,
-            keyword,
-            top_k,
+        retriever: VectorStoreRetriever = self.blog_vectorize_service.get_retriever(
+            search_type="similarity_score_threshold",
+            search_kwargs={
+                "k": top_k,
+                "score_threshold": 0.0,
+                "filter": [{"term": {"metadata.shop_id.keyword": str(shop_id)}}],
+            },
         )
+        documents: list[Document] = await retriever.ainvoke(keyword)
         now: datetime = datetime.now()
         min_time: datetime = now - timedelta(days=365)
 
-        # 关键步骤：仅保留 create_time 在一年内的评论。
         comments: list[str] = []
-        row: dict[str, Any]
-        for row in rows:
-            create_time_text: str = str(row.get("create_time", ""))
-            content_text: str = str(row.get("content", "")).strip()
+        document: Document
+        for document in documents:
+            create_time_text: str = str(document.metadata.get("create_time", ""))
+            content_text: str = str(document.page_content).strip()
             if content_text == "":
                 continue
 
@@ -51,7 +46,7 @@ class ShopSearchRagService:
             if parsed_time >= min_time:
                 comments.append(content_text)
 
-        return comments
+        return comments[:top_k]
 
     def _safe_parse_time(self, value: str) -> datetime | None:
         """安全解析 ISO 时间文本。"""

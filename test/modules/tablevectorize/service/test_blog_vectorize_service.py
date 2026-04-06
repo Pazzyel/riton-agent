@@ -231,3 +231,4 @@ async def test_handle_message_sets_enriched_text_and_metadata(monkeypatch: pytes
     assert first_doc.metadata["liked"] == dto.liked
     assert first_doc.metadata["comments"] == dto.comments
     assert first_doc.metadata["chunk_index"] == 0
+

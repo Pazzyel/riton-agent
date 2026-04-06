@@ -11,6 +11,7 @@ plans
 AGENTS.md
 CLAUDE.md
 .gitignore
+.opencode
 opencode.json
 .worktrees
 docs

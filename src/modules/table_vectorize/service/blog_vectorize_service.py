@@ -23,7 +23,7 @@ class BlogVectorizeService:
     async def handle_message(self, dto: BlogVectorizeDto) -> None:
         """Handle one blog vectorize event by operation type."""
         operation: str = dto.operation.strip().lower()
-        if operation == "DELETE":
+        if operation == "delete":
             await self.vector_service.delete_vector_by_id(dto.id)
             return
 
@@ -45,6 +45,7 @@ class BlogVectorizeService:
                     "id": str(dto.id),
                     "kb_id": str(dto.id),
                     "shop_id": str(dto.shop_id),
+                    "create_time": dto.create_time.isoformat(),
                     "h3hex": dto.h3hex,
                     "liked": dto.liked,
                     "comments": dto.comments,
@@ -56,5 +57,9 @@ class BlogVectorizeService:
         if documents:
             await self.vector_service.add_documents(documents)
 
-    def get_retriever(self) -> VectorStoreRetriever:
-        return self.vector_service.get_retriever()
+    def get_retriever(
+            self,
+            search_type: str = "similarity_score_threshold",
+            search_kwargs: Optional[dict] = None
+        ) -> VectorStoreRetriever:
+        return self.vector_service.get_retriever(search_type, search_kwargs)
