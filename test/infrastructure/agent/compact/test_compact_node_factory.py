@@ -1,3 +1,4 @@
+import asyncio
 import sys
 from pathlib import Path
 from typing import Any
@@ -29,7 +30,7 @@ def test_factory_builds_passthrough_node_when_below_threshold() -> None:
     node = factory.build_node("next_node")
     state: dict[str, Any] = {"messages": [HumanMessage(content="hello")]}
 
-    command = node(state)
+    command = asyncio.run(node(state))
 
     assert command.goto == "next_node"
     assert command.update == {}
@@ -51,10 +52,25 @@ def test_factory_builds_replace_all_update_when_threshold_reached() -> None:
         ]
     }
 
-    command = node(state)
+    command = asyncio.run(node(state))
 
     assert command.goto == "next_node"
     assert len(command.update["messages"]) == 3
+
+
+def test_factory_builds_async_node_when_compaction_is_async() -> None:
+    """压缩节点工厂应支持异步压缩服务。"""
+    from infrastructure.agent.compact.compact_node_factory import CompactNodeFactory
+
+    factory: CompactNodeFactory = CompactNodeFactory(
+        token_estimator=_FakeEstimator(token_count=200000, should_compact_flag=True),
+        compact_service=_AsyncFakeCompactService(),
+    )
+    node = factory.build_node("next_node")
+
+    command = asyncio.run(node({"messages": [HumanMessage(content="hello")]}))
+
+    assert command.goto == "next_node"
 
 
 class _FakeEstimator:
@@ -77,6 +93,15 @@ class _FakeCompactService:
     """测试用压缩服务。"""
 
     def compact_messages(self, messages: list[Any], current_token_count: int) -> list[Any]:
+        _ = messages
+        _ = current_token_count
+        return [AIMessage(content="compacted")]
+
+
+class _AsyncFakeCompactService:
+    """测试用异步压缩服务。"""
+
+    async def compact_messages(self, messages: list[Any], current_token_count: int) -> list[Any]:
         _ = messages
         _ = current_token_count
         return [AIMessage(content="compacted")]

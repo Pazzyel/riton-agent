@@ -11,7 +11,7 @@ from langchain_core.runnables import RunnableConfig
 from config.ai_config import ai_config
 
 current_dir = Path(__file__).parent
-root_dir = current_dir.parents[2]
+root_dir = current_dir.parents[3]
 prompt_cache: Dict[str, ChatPromptTemplate] = {} # 全局prompt缓存
 
 class Role(Enum):
@@ -19,7 +19,7 @@ class Role(Enum):
     USER = "user"
     ASSISTANT = "assistant"
 
-async def load_prompt(node_name: str, with_short_memory: bool = False) -> ChatPromptTemplate:
+async def load_prompt(node_name: str, with_short_memory: bool = True) -> ChatPromptTemplate:
     """
     加载对应名字的提示词文件
 

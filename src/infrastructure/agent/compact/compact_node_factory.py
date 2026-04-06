@@ -1,3 +1,4 @@
+import inspect
 from typing import Any
 
 from langchain_core.messages import RemoveMessage, AnyMessage
@@ -24,7 +25,7 @@ class CompactNodeFactory:
     def build_node(self, goto: str):
         """构建压缩节点函数。"""
 
-        def node(state: dict[str, Any]) -> Command:
+        async def node(state: dict[str, Any]) -> Command:
             messages: Any = state.get(self.message_key, [])
             if not isinstance(messages, list) or len(messages) == 0:
                 return Command(update={}, goto=goto)
@@ -33,7 +34,7 @@ class CompactNodeFactory:
             if not self.token_estimator.should_compact(token_count):
                 return Command(update={}, goto=goto)
 
-            compacted_messages: list[Any] = self.compact_service.compact_messages(messages, token_count)
+            compacted_messages: list[AnyMessage] = await self.compact_service.compact_messages(messages, token_count)
 
             # 没有达到阈值，不总结
             if compacted_messages == messages:

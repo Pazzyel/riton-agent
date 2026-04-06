@@ -275,6 +275,14 @@ def test_service_builds_compact_services() -> None:
     assert service.token_estimator is not None
 
 
+def test_shop_search_service_initializes_compact_service_with_model_and_prompt_loader() -> None:
+    """压缩服务应初始化为带模型和 prompt loader 的实例。"""
+    service: ShopSearchAgentService = _build_service()
+
+    assert service.compact_service.model is not None
+    assert service.compact_service.prompt_loader is not None
+
+
 def test_compact_before_parse_node_uses_factory_output() -> None:
     """parse 前压缩节点应通过工厂生成并正常工作。"""
     service: ShopSearchAgentService = _build_service()
@@ -290,9 +298,10 @@ def test_compact_before_parse_node_can_compact_messages_when_threshold_reached()
     state["messages"] = _build_large_message_history()
 
     compact_node = service.compact_node_factory.build_node("parse_intent_node")
-    command: Any = compact_node(state)
+    command: Any = asyncio.run(compact_node(state))
 
-    assert any("会话摘要" in str(message.content) for message in command.update["messages"])
+    assert any(message.type == "remove" for message in command.update["messages"])
+    assert any(message.type == "ai" for message in command.update["messages"])
 
 
 def test_parse_intent_uses_messages_from_state() -> None:

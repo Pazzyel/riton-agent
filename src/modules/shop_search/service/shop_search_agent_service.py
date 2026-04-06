@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from infrastructure.agent.compact.compact_node_factory import CompactNodeFactory
 from infrastructure.agent.compact.message_compact_service import MessageCompactService
 from infrastructure.agent.compact.token_estimator import MessageTokenEstimator
+from infrastructure.agent.prompt.prompt_service import load_prompt
 from modules.session.model.dto.chat_session_dto import CreateSessionRequest
 from modules.session.model.entity.chat_message_entity import MessageType
 from modules.shop_search.model.entity.shop_search_state import ShopSearchState
@@ -72,7 +73,10 @@ class ShopSearchAgentService:
         self._checkpointer: Any | None = None
         self._model: ModelProtocol | None = model
         self._prompt_loader: Callable[[str], Any] | None = prompt_loader
-        self.compact_service: MessageCompactService = compact_service or MessageCompactService()
+        self.compact_service: MessageCompactService = compact_service or MessageCompactService(
+            model=self._get_model(),
+            prompt_loader=load_prompt,
+        )
         self.token_estimator: MessageTokenEstimator = token_estimator or MessageTokenEstimator()
         self.compact_node_factory: CompactNodeFactory = CompactNodeFactory(
             self.token_estimator,
