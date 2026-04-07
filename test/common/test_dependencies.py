@@ -48,6 +48,29 @@ def test_dependencies_wire_new_vector_services(monkeypatch) -> None:
     fake_vector_service_module.VectorService = FakeVectorService
     monkeypatch.setitem(sys.modules, "infrastructure.vector.vector_service", fake_vector_service_module)
 
+    fake_retriever_module = types.ModuleType("infrastructure.agent.retriever")
+
+    class FakeHybridEsRrfRetriever:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = kwargs
+            _capture_call("hybrid_es_rrf_retriever", args)
+
+    class FakeOllamaReranker:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args
+            _ = kwargs
+            _capture_call("ollama_reranker", tuple())
+
+    class FakeHybirdRerankedRetrieverService:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = kwargs
+            _capture_call("hybird_reranked_retriever_service", args)
+
+    fake_retriever_module.HybridEsRrfRetriever = FakeHybridEsRrfRetriever
+    fake_retriever_module.OllamaReranker = FakeOllamaReranker
+    fake_retriever_module.HybirdRerankedRetrieverService = FakeHybirdRerankedRetrieverService
+    monkeypatch.setitem(sys.modules, "infrastructure.agent.retriever", fake_retriever_module)
+
     fake_kb_listener_module = types.ModuleType("modules.knowledgebase.listener")
 
     class FakeKnowledgeBaseVectorizeConsumerService:
@@ -179,6 +202,7 @@ def test_dependencies_wire_new_vector_services(monkeypatch) -> None:
         def __init__(self, *args: object, **kwargs: object) -> None:
             _ = args
             _ = kwargs
+            self.vector_service = FakeVectorService()
 
     class FakeShopVectorizeMessageProducer:
         def __init__(self, *args: object, **kwargs: object) -> None:
@@ -243,6 +267,9 @@ def test_dependencies_wire_new_vector_services(monkeypatch) -> None:
 
     fake_session_repo_module = types.ModuleType("modules.session.repository.chat_session_repository")
     fake_session_service_module = types.ModuleType("modules.session.service.chat_session_service")
+    fake_shop_search_tool_module = types.ModuleType("modules.shop_search.service.shop_search_tool_service")
+    fake_shop_search_rag_module = types.ModuleType("modules.shop_search.service.shop_search_rag_service")
+    fake_shop_search_agent_module = types.ModuleType("modules.shop_search.service.shop_search_agent_service")
 
     class FakeChatSessionRepository:
         def __init__(self, *args: object, **kwargs: object) -> None:
@@ -260,10 +287,31 @@ def test_dependencies_wire_new_vector_services(monkeypatch) -> None:
         def __init__(self, *args: object, **kwargs: object) -> None:
             _ = kwargs
 
+    class FakeShopSearchToolService:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = args
+            _ = kwargs
+
+    class FakeShopSearchRagService:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = kwargs
+            _capture_call("shop_search_rag_service", args)
+
+    class FakeShopSearchAgentService:
+        def __init__(self, *args: object, **kwargs: object) -> None:
+            _ = kwargs
+            _capture_call("shop_search_agent_service", args)
+
     fake_session_repo_module.ChatSessionRepository = FakeChatSessionRepository
     fake_session_service_module.ChatSessionService = FakeChatSessionService
+    fake_shop_search_tool_module.ShopSearchToolService = FakeShopSearchToolService
+    fake_shop_search_rag_module.ShopSearchRagService = FakeShopSearchRagService
+    fake_shop_search_agent_module.ShopSearchAgentService = FakeShopSearchAgentService
     monkeypatch.setitem(sys.modules, "modules.session.repository.chat_session_repository", fake_session_repo_module)
     monkeypatch.setitem(sys.modules, "modules.session.service.chat_session_service", fake_session_service_module)
+    monkeypatch.setitem(sys.modules, "modules.shop_search.service.shop_search_tool_service", fake_shop_search_tool_module)
+    monkeypatch.setitem(sys.modules, "modules.shop_search.service.shop_search_rag_service", fake_shop_search_rag_module)
+    monkeypatch.setitem(sys.modules, "modules.shop_search.service.shop_search_agent_service", fake_shop_search_agent_module)
 
     import importlib.util
 
@@ -311,3 +359,20 @@ def test_dependencies_wire_new_vector_services(monkeypatch) -> None:
     assert len(blog_consumer_args) == 2
     assert isinstance(blog_consumer_args[0], FakeBlogVectorizeService)
     assert isinstance(blog_consumer_args[1], FakeBlogVectorizeMessageProducer)
+
+    hybrid_args = captured.get("hybrid_es_rrf_retriever")
+    assert hybrid_args is not None
+    assert len(hybrid_args) == 1
+    assert isinstance(hybrid_args[0], FakeVectorService)
+
+    reranked_args = captured.get("hybird_reranked_retriever_service")
+    assert reranked_args is not None
+    assert len(reranked_args) == 2
+
+    ollama_args = captured.get("ollama_reranker")
+    assert ollama_args is not None
+
+    shop_search_rag_args = captured.get("shop_search_rag_service")
+    assert shop_search_rag_args is not None
+    assert len(shop_search_rag_args) == 1
+    assert shop_search_rag_args[0] is dependencies.blog_comment_retriever_service

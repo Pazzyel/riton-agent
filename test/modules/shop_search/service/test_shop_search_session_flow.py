@@ -2,6 +2,8 @@ import sys
 from pathlib import Path
 import asyncio
 
+from langchain_core.documents import Document
+
 
 def _ensure_src_path() -> None:
     """确保测试可导入 src 下一级包。"""
@@ -41,7 +43,7 @@ def test_initial_state_contains_session_and_messages() -> None:
 
     service: ShopSearchAgentService = ShopSearchAgentService(
         tool_service=ShopSearchToolService(tools=[]),
-        rag_service=ShopSearchRagService(blog_retriever=_EmptyRetriever()),
+        rag_service=ShopSearchRagService(_EmptyRetriever()),
         chat_session_service=None,
         model=_NoopModel(),
         prompt_loader=lambda _: _NoopPrompt(),
@@ -69,7 +71,7 @@ def test_search_stream_creates_session_when_missing() -> None:
     fake_session_service: _FakeChatSessionService = _FakeChatSessionService()
     service: ShopSearchAgentService = ShopSearchAgentService(
         tool_service=ShopSearchToolService(tools=[]),
-        rag_service=ShopSearchRagService(blog_retriever=_EmptyRetriever()),
+        rag_service=ShopSearchRagService(_EmptyRetriever()),
         chat_session_service=fake_session_service,
         model=_NoopModel(),
         prompt_loader=lambda _: _NoopPrompt(),
@@ -103,7 +105,7 @@ def test_search_stream_reuses_existing_session_id() -> None:
     fake_session_service: _FakeChatSessionService = _FakeChatSessionService()
     service: ShopSearchAgentService = ShopSearchAgentService(
         tool_service=ShopSearchToolService(tools=[]),
-        rag_service=ShopSearchRagService(blog_retriever=_EmptyRetriever()),
+        rag_service=ShopSearchRagService(_EmptyRetriever()),
         chat_session_service=fake_session_service,
         model=_NoopModel(),
         prompt_loader=lambda _: _NoopPrompt(),
@@ -135,7 +137,7 @@ def test_fallback_answer_is_still_persisted() -> None:
     fake_session_service: _FakeChatSessionService = _FakeChatSessionService()
     service: ShopSearchAgentService = ShopSearchAgentService(
         tool_service=ShopSearchToolService(tools=[]),
-        rag_service=ShopSearchRagService(blog_retriever=_EmptyRetriever()),
+        rag_service=ShopSearchRagService(_EmptyRetriever()),
         chat_session_service=fake_session_service,
         model=_NoopModel(),
         prompt_loader=lambda _: _NoopPrompt(),
@@ -170,7 +172,7 @@ def test_set_checkpointer_rebuilds_graph() -> None:
 
     service: ShopSearchAgentService = ShopSearchAgentService(
         tool_service=ShopSearchToolService(tools=[]),
-        rag_service=ShopSearchRagService(blog_retriever=_EmptyRetriever()),
+        rag_service=ShopSearchRagService(_EmptyRetriever()),
         chat_session_service=_FakeChatSessionService(),
         model=_NoopModel(),
         prompt_loader=lambda _: _NoopPrompt(),
@@ -194,7 +196,7 @@ def test_search_stream_passes_thread_id_to_graph() -> None:
     fake_graph: _FakeGraph = _FakeGraph("[[shop_id=1003]]\n推荐")
     service: ShopSearchAgentService = ShopSearchAgentService(
         tool_service=ShopSearchToolService(tools=[]),
-        rag_service=ShopSearchRagService(blog_retriever=_EmptyRetriever()),
+        rag_service=ShopSearchRagService(_EmptyRetriever()),
         chat_session_service=fake_session_service,
         model=_NoopModel(),
         prompt_loader=lambda _: _NoopPrompt(),
@@ -237,11 +239,15 @@ class _NoopModel:
 class _EmptyRetriever:
     """空评论检索器。"""
 
-    async def retrieve_by_shop(self, shop_id: int, keyword: str, top_k: int) -> list[dict]:
-        """返回空列表。"""
-        _ = shop_id
-        _ = keyword
+    async def retrieve(
+        self,
+        query: str,
+        top_k: int,
+        filters: list[dict] | None = None,
+    ) -> list[Document]:
+        _ = query
         _ = top_k
+        _ = filters
         return []
 
 
