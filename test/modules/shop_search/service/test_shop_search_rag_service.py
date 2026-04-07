@@ -1,13 +1,12 @@
 import asyncio
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from langchain_core.documents import Document
 
 
 def _ensure_src_path() -> None:
-    """确保测试可以导入 src 下模块。"""
     test_file: Path = Path(__file__).resolve()
     project_root: Path = test_file.parents[4]
     src_root: Path = project_root / "src"
@@ -21,28 +20,23 @@ _ensure_src_path()
 from modules.shop_search.service.shop_search_rag_service import ShopSearchRagService
 
 
-class DummyBlogVectorService:
-    """用于测试的评论向量服务。"""
+class DummyHybridRetrieverService:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
 
-    def get_retriever(
+    async def retrieve(
         self,
-        search_type: str = "similarity_score_threshold",
-        search_kwargs: dict | None = None,
-    ) -> object:
-        """返回带固定文档的 retriever。"""
-        assert search_type == "similarity_score_threshold"
-        assert search_kwargs is not None
-        assert search_kwargs["k"] == 8
-        assert search_kwargs["filter"] == [{"term": {"metadata.shop_id.keyword": "1001"}}]
-        return _DummyRetriever()
-
-
-class _DummyRetriever:
-    """用于测试的 retriever。"""
-
-    async def ainvoke(self, keyword: str) -> list[Document]:
-        """返回包含新旧评论的混合文档。"""
-        _ = keyword
+        query: str,
+        top_k: int,
+        filters: list[dict] | None = None,
+    ) -> list[Document]:
+        self.calls.append(
+            {
+                "query": query,
+                "top_k": top_k,
+                "filters": filters,
+            }
+        )
         now: datetime = datetime.now()
         old_time: datetime = now - timedelta(days=500)
         return [
@@ -51,8 +45,36 @@ class _DummyRetriever:
         ]
 
 
-def test_retrieve_comments_filters_old_records() -> None:
-    """应仅保留一年内评论。"""
-    service: ShopSearchRagService = ShopSearchRagService(DummyBlogVectorService())
-    comments: list[str] = asyncio.run(service.retrieve_comments(1001, "生日"))
+def test_retrieve_comments_uses_hybrid_rerank_and_filters_old_records() -> None:
+    retriever = DummyHybridRetrieverService()
+    service = ShopSearchRagService(retriever)
+
+    comments = asyncio.run(service.retrieve_comments(1001, "生日"))
+
     assert comments == ["生日布置很用心"]
+    assert retriever.calls[0]["filters"] == [{"term": {"metadata.shop_id.keyword": "1001"}}]
+    assert retriever.calls[0]["top_k"] == 8
+
+
+class DummyAwareTimeRetrieverService:
+    async def retrieve(
+        self,
+        query: str,
+        top_k: int,
+        filters: list[dict] | None = None,
+    ) -> list[Document]:
+        _ = query
+        _ = top_k
+        _ = filters
+        aware_now: datetime = datetime.now(timezone.utc)
+        return [
+            Document(page_content="带时区的新评论", metadata={"create_time": aware_now.isoformat()}),
+        ]
+
+
+def test_retrieve_comments_accepts_timezone_aware_create_time() -> None:
+    service = ShopSearchRagService(DummyAwareTimeRetrieverService())
+
+    comments = asyncio.run(service.retrieve_comments(1001, "生日"))
+
+    assert comments == ["带时区的新评论"]

@@ -1,3 +1,8 @@
+from infrastructure.agent.retriever import (
+    HybridEsRrfRetriever,
+    HybirdRerankedRetrieverService,
+    BgeV2M3Reranker,
+)
 from infrastructure.file.document_parse_service import DocumentParseService
 from infrastructure.file.file_hash_service import FileHashService
 from infrastructure.file.file_storage_service import FileStorageService
@@ -120,7 +125,13 @@ chat_session_service = ChatSessionService(chat_session_repository)
 # ==================== Shop Search Module ====================
 
 shop_search_tool_service = ShopSearchToolService()
-shop_search_rag_service = ShopSearchRagService(blog_vectorize_service)
+blog_comment_hybrid_retriever = HybridEsRrfRetriever(blog_vectorize_service.vector_service)
+blog_comment_ollama_reranker = BgeV2M3Reranker()
+blog_comment_retriever_service = HybirdRerankedRetrieverService(
+    blog_comment_hybrid_retriever,
+    blog_comment_ollama_reranker,
+)
+shop_search_rag_service = ShopSearchRagService(blog_comment_retriever_service)
 shop_search_agent_service = ShopSearchAgentService(
     shop_search_tool_service,
     shop_search_rag_service,

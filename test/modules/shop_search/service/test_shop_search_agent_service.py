@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from langchain_core.documents import Document
 from langchain_core.messages import AIMessage
 
 
@@ -135,19 +136,21 @@ class FakeModel:
 class FakeBlogRetriever:
     """测试用评论检索器。"""
 
-    async def retrieve_by_shop(
+    async def retrieve(
         self,
-        shop_id: int,
-        keyword: str,
+        query: str,
         top_k: int,
-    ) -> list[dict[str, str]]:
-        """返回一年内评论。"""
+        filters: list[dict] | None = None,
+    ) -> list[Document]:
         _ = top_k
+        shop_id = "unknown"
+        if filters:
+            shop_id = str(filters[0]["term"]["metadata.shop_id.keyword"])
         return [
-            {
-                "content": f"店铺{shop_id}评论命中{keyword}",
-                "create_time": "2026-01-01T00:00:00",
-            }
+            Document(
+                page_content=f"店铺{shop_id}评论命中{query}",
+                metadata={"create_time": "2026-01-01T00:00:00"},
+            )
         ]
 
 
